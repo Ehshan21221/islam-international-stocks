@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Islam International Stocks</title>
+<meta name="theme-color" content="#0F241C">
+<meta name="description" content="Live stock records for Islam International — Old, Saiful, Rakib & Liwa shops">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="II Stocks">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --forest-deep:#0F241C;
+    --forest:#164430;
+    --forest-soft:#1E5A3D;
+    --gold:#B08D57;
+    --gold-light:#D9C093;
+    --cream:#F7F4EC;
+    --cream-dim:#EDE8DA;
+    --ink:#161C18;
+    --ink-soft:#4B564F;
+    --stitch:#2E6E4E;
+    --danger:#A23B3B;
+    --shadow: 0 10px 30px -12px rgba(15,36,28,.35);
+    --radius: 18px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--cream);
+    color:var(--ink);
+    font-family:'Manrope',sans-serif;
+    overflow-x:hidden;
+    min-height:100vh;
+    min-height:100dvh;
+  }
+  .num, .qty-num{font-family:'IBM Plex Mono',monospace; font-variant-numeric:tabular-nums;}
+  h1,h2,h3,.display{font-family:'Fraunces',serif;}
+
+  /* ---------- stitched thread divider (signature motif) ---------- */
+  .stitch{
+    height:1px;
+    background-image: linear-gradient(90deg, var(--stitch) 55%, transparent 45%);
+    background-size: 12px 1px;
+    background-repeat: repeat-x;
+    opacity:.5;
+    margin: 0;
+  }
+  .stitch-v{
+    width:1px;
+    background-image: linear-gradient(180deg, var(--stitch) 55%, transparent 45%);
+    background-size: 1px 10px;
+    background-repeat: repeat-y;
+    opacity:.4;
+  }
+
+  /* ---------- app shell / screens ---------- */
+  #app{min-height:100vh; min-height:100dvh; display:flex; flex-direction:column;}
+  .screen{display:none; flex:1; flex-direction:column; animation:fadein .35s ease both;}
+  .screen.active{display:flex;}
+  @keyframes fadein{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+
+  /* ---------- LOGIN SCREEN ---------- */
+  #screen-login{
+    background: radial-gradient(circle at 30% -10%, var(--forest-soft) 0%, var(--forest-deep) 55%, #0a1712 100%);
+    color:var(--cream);
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    padding:32px 24px;
+    position:relative;
+  }
+  .brand-logo{
+    width:132px; height:132px;
+    border-radius:50%;
+    box-shadow: 0 0 0 1px rgba(217,192,147,.35), 0 20px 50px -10px rgba(0,0,0,.6);
+    margin-bottom:22px;
+    animation: floatIn .8s cubic-bezier(.2,.9,.25,1) both;
+  }
+  @keyframes floatIn{from{opacity:0; transform:translateY(14px) scale(.92);} to{opacity:1; transform:translateY(0) scale(1);}}
+  #screen-login h1{font-size:28px; font-weight:600; margin:0 0 6px; letter-spacing:.2px;}
+  #screen-login .sub{color:var(--gold-light); font-size:14px; margin:0 0 40px; opacity:.9; letter-spacing:.3px;}
+  .btn-google{
+    display:flex; align-items:center; gap:12px;
+    background:var(--cream); color:var(--ink);
+    border:none; border-radius:999px;
+    padding:15px 28px; font-size:15px; font-weight:700;
+    font-family:'Manrope',sans-serif;
+    cursor:pointer; box-shadow:var(--shadow);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .btn-google:active{transform:scale(.97);}
+  .btn-google svg{width:20px; height:20px;}
+  #login-error{color:#F3B4B4; font-size:13px; margin-top:16px; max-width:280px; display:none;}
+  .login-footnote{position:absolute; bottom:22px; left:0; right:0; text-align:center; font-size:11px; color:rgba(247,244,236,.45); letter-spacing:.4px;}
+
+  /* ---------- SHOP PICKER SCREEN ---------- */
+  #screen-shops{background:var(--cream);}
+  .topbar{
+    display:flex; align-items:center; gap:12px;
+    padding: max(18px, env(safe-area-inset-top)) 20px 16px;
+    background:var(--forest-deep); color:var(--cream);
+  }
+  .topbar img{width:34px; height:34px; border-radius:50%;}
+  .topbar .titles{flex:1; min-width:0;}
+  .topbar h1{font-size:17px; margin:0; font-weight:600; line-height:1.15;}
+  .topbar .titles span{font-size:11px; color:var(--gold-light); opacity:.85;}
+  .user-chip{
+    display:flex; align-items:center; gap:8px;
+    background:rgba(255,255,255,.08); border-radius:999px; padding:5px 12px 5px 5px;
+    font-size:12px; cursor:pointer; border:1px solid rgba(255,255,255,.12);
+  }
+  .user-chip img{width:22px; height:22px; border-radius:50%;}
+
+  .live-pill{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
+    color:#BFE7CE; padding:5px 10px 5px 8px; border-radius:999px;
+    background:rgba(46,110,78,.35); border:1px solid rgba(191,231,206,.25);
+  }
+  .live-dot{width:7px; height:7px; border-radius:50%; background:#5CE79A; box-shadow:0 0 0 rgba(92,231,154,.6);
+    animation: pulse 1.8s infinite;}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(92,231,154,.55);}
+    70%{box-shadow:0 0 0 8px rgba(92,231,154,0);}
+    100%{box-shadow:0 0 0 0 rgba(92,231,154,0);}
+  }
+
+  .shop-grid{
+    padding:20px; display:grid; grid-template-columns:1fr 1fr; gap:14px;
+  }
+  .shop-card{
+    position:relative; overflow:hidden;
+    border-radius:20px; padding:20px 16px 16px;
+    min-height:140px; display:flex; flex-direction:column; justify-content:space-between;
+    color:var(--cream); cursor:pointer; border:none; text-align:left;
+    box-shadow:var(--shadow);
+    transition: transform .18s cubic-bezier(.2,.8,.3,1);
+  }
+  .shop-card:active{transform:scale(.96);}
+  .shop-card .glow{
+    position:absolute; inset:-30% -30% auto auto; width:140px; height:140px; border-radius:50%;
+    background:radial-gradient(circle, rgba(255,255,255,.22), transparent 70%);
+    pointer-events:none;
+  }
+  .shop-card .label{font-size:11px; text-transform:uppercase; letter-spacing:.5px; opacity:.75; font-weight:700;}
+  .shop-card h2{font-size:20px; margin:2px 0 0; font-weight:600; line-height:1.15;}
+  .shop-card .meta{display:flex; align-items:center; justify-content:space-between; margin-top:14px;}
+  .shop-card .count{font-size:12px; opacity:.85;}
+  .shop-card .arrow{width:30px; height:30px; border-radius:50%; background:rgba(255,255,255,.18);
+    display:flex; align-items:center; justify-content:center; font-size:16px;}
+
+  .activity-strip{padding:0 20px 24px;}
+  .activity-strip h3{font-size:13px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-soft); margin:6px 0 10px; font-weight:800;}
+  .activity-item{
+    display:flex; gap:10px; align-items:flex-start; padding:10px 0;
+  }
+  .activity-item .dot{width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0;}
+  .activity-item .txt{font-size:13px; color:var(--ink); line-height:1.4;}
+  .activity-item .txt b{font-weight:700;}
+  .activity-item .time{font-size:11px; color:var(--ink-soft); opacity:.8;}
+  .empty-note{font-size:13px; color:var(--ink-soft); padding:8px 0;}
+
+  /* ---------- SHOP DETAIL SCREEN ---------- */
+  #screen-shop{background:var(--cream);}
+  .shop-header{
+    padding: max(16px, env(safe-area-inset-top)) 16px 20px;
+    color:var(--cream);
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .shop-header .row1{display:flex; align-items:center; gap:10px;}
+  .back-btn{
+    width:34px; height:34px; border-radius:50%; border:none;
+    background:rgba(255,255,255,.16); color:var(--cream); font-size:17px;
+    display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .shop-header h1{font-size:20px; margin:0; flex:1; font-weight:600;}
+  .search-wrap{position:relative;}
+  .search-wrap input{
+    width:100%; border:none; border-radius:14px; padding:12px 14px 12px 40px;
+    font-family:'Manrope'; font-size:14px; background:rgba(255,255,255,.14); color:var(--cream);
+    outline:none;
+  }
+  .search-wrap input::placeholder{color:rgba(247,244,236,.6);}
+  .search-wrap .ic{position:absolute; left:13px; top:50%; transform:translateY(-50%); opacity:.7; font-size:14px;}
+
+  .item-list{padding:16px 16px 100px; flex:1;}
+  .item-card{
+    background:#fff; border-radius:16px; padding:14px 14px 12px;
+    margin-bottom:12px; box-shadow: 0 4px 16px -8px rgba(15,36,28,.18);
+    border:1px solid rgba(15,36,28,.06);
+    animation: cardIn .3s ease both;
+  }
+  @keyframes cardIn{from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:translateY(0);}}
+  .item-card .top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .item-card h3{font-size:15px; margin:0; font-weight:700; line-height:1.3;}
+  .unit-badge{
+    font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.4px;
+    padding:3px 8px; border-radius:999px; white-space:nowrap;
+  }
+  .item-card .updated{font-size:11px; color:var(--ink-soft); margin-top:3px;}
+  .qty-row{display:flex; align-items:center; justify-content:space-between; margin-top:12px;}
+  .stepper{display:flex; align-items:center; gap:14px;}
+  .step-btn{
+    width:38px; height:38px; border-radius:50%; border:none; cursor:pointer;
+    font-size:19px; font-weight:700; display:flex; align-items:center; justify-content:center;
+    color:#fff; transition: transform .12s ease;
+    -webkit-user-select:none; user-select:none;
+  }
+  .step-btn:active{transform:scale(.85);}
+  .step-btn.minus{background:var(--danger);}
+  .step-btn.plus{background:var(--forest);}
+  .qty-display{min-width:64px; text-align:center;}
+  .qty-num{font-size:22px; font-weight:700; display:inline-block;}
+  .qty-num.bump{animation: bump .28s ease;}
+  @keyframes bump{
+    0%{transform:scale(1);}
+    35%{transform:scale(1.35);}
+    100%{transform:scale(1);}
+  }
+  .qty-unit{font-size:10px; text-transform:uppercase; color:var(--ink-soft); letter-spacing:.4px; display:block; margin-top:1px;}
+  .del-btn{background:none; border:none; color:#C79B9B; font-size:16px; cursor:pointer; padding:4px;}
+
+  .fab{
+    position:fixed; right:20px; bottom:calc(20px + env(safe-area-inset-bottom));
+    width:58px; height:58px; border-radius:50%; border:none;
+    background:var(--gold); color:var(--forest-deep); font-size:28px; font-weight:700;
+    box-shadow:0 12px 24px -8px rgba(15,36,28,.5); cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    transition: transform .15s ease;
+    z-index:50;
+  }
+  .fab:active{transform:scale(.9) rotate(90deg);}
+
+  /* ---------- MODAL (add item) ---------- */
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(15,36,28,.55); z-index:100;
+    display:none; align-items:flex-end; justify-content:center;
+    backdrop-filter: blur(2px);
+  }
+  .modal-backdrop.active{display:flex; animation:fadein .2s ease both;}
+  .modal-sheet{
+    background:var(--cream); width:100%; max-width:480px;
+    border-radius:24px 24px 0 0; padding:22px 20px calc(24px + env(safe-area-inset-bottom));
+    animation: sheetUp .28s cubic-bezier(.2,.9,.25,1) both;
+  }
+  @keyframes sheetUp{from{transform:translateY(100%);} to{transform:translateY(0);}}
+  .modal-sheet h2{margin:0 0 4px; font-size:19px;}
+  .modal-sheet .hint{font-size:12px; color:var(--ink-soft); margin-bottom:18px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-soft); margin-bottom:6px;}
+  .field input{
+    width:100%; border:1.5px solid rgba(15,36,28,.14); border-radius:12px;
+    padding:12px 14px; font-family:'Manrope'; font-size:15px; background:#fff; outline:none;
+  }
+  .field input:focus{border-color:var(--forest);}
+  .unit-choices{display:flex; gap:8px; flex-wrap:wrap;}
+  .unit-choice{
+    padding:9px 14px; border-radius:999px; border:1.5px solid rgba(15,36,28,.14);
+    background:#fff; font-size:13px; font-weight:700; cursor:pointer; color:var(--ink-soft);
+  }
+  .unit-choice.active{background:var(--forest); border-color:var(--forest); color:#fff;}
+  .modal-actions{display:flex; gap:10px; margin-top:8px;}
+  .btn{
+    flex:1; border:none; border-radius:13px; padding:14px; font-weight:700; font-size:15px;
+    cursor:pointer; font-family:'Manrope';
+  }
+  .btn-primary{background:var(--forest); color:#fff;}
+  .btn-ghost{background:transparent; color:var(--ink-soft);}
+
+  .footer-credit{
+    text-align:center; font-size:10.5px; color:var(--ink-soft); opacity:.55;
+    padding:14px 0 max(14px, env(safe-area-inset-bottom)); letter-spacing:.3px;
+  }
+
+  .toast{
+    position:fixed; left:50%; top:calc(16px + env(safe-area-inset-top)); transform:translateX(-50%) translateY(-20px);
+    background:var(--forest-deep); color:var(--cream); padding:10px 18px; border-radius:999px;
+    font-size:13px; font-weight:600; box-shadow:var(--shadow); z-index:200; opacity:0;
+    transition: all .25s cubic-bezier(.2,.9,.25,1); pointer-events:none;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .loader{display:flex; align-items:center; justify-content:center; padding:40px 0; gap:10px; color:var(--ink-soft); font-size:13px;}
+  .loader .spin{width:16px; height:16px; border-radius:50%; border:2px solid rgba(46,110,78,.25); border-top-color:var(--stitch); animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ===================== LOGIN SCREEN ===================== -->
+  <section id="screen-login" class="screen active">
+    <img class="brand-logo" src="icons/logo-header.png" alt="Islam International">
+    <h1>Islam International<br>Stocks</h1>
+    <p class="sub">Old Shop · Saiful Shop · Rakib Shop · Liwa Shop</p>
+    <button class="btn-google" id="btn-google-signin">
+      <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.9 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6 29.6 4 24 4c-7.5 0-14 4.2-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.4 0 10.4-2.1 14.1-5.5l-6.5-5.5C29.5 34.9 26.9 36 24 36c-5.3 0-9.8-3.1-11.2-7.9l-6.6 5C9.9 39.8 16.4 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.7 2-2 3.7-3.7 5l6.5 5.5C40.9 36.5 44 30.9 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+      Sign in with Google
+    </button>
+    <p id="login-error"></p>
+    <p class="login-footnote">Made by Ehshan</p>
+  </section>
+
+  <!-- ===================== SHOP PICKER SCREEN ===================== -->
+  <section id="screen-shops" class="screen">
+    <div class="topbar">
+      <img src="icons/logo-header.png" alt="">
+      <div class="titles">
+        <h1>Islam International</h1>
+        <span id="welcome-name">Stocks</span>
+      </div>
+      <span class="live-pill"><span class="live-dot"></span>Live</span>
+      <div class="user-chip" id="user-chip"><img id="user-photo" src="" alt=""><span id="user-fname"></span></div>
+    </div>
+
+    <div class="shop-grid" id="shop-grid"><!-- shop cards injected --></div>
+
+    <div class="activity-strip">
+      <h3>Recent changes</h3>
+      <div id="global-activity"><div class="empty-note">Nothing recorded yet — add your first item in a shop.</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== SHOP DETAIL SCREEN ===================== -->
+  <section id="screen-shop" class="screen">
+    <div class="shop-header" id="shop-header-bg">
+      <div class="row1">
+        <button class="back-btn" id="btn-back">←</button>
+        <h1 id="shop-title">Shop</h1>
+        <span class="live-pill"><span class="live-dot"></span>Live</span>
+      </div>
+      <div class="search-wrap">
+        <span class="ic">🔎</span>
+        <input type="text" id="search-input" placeholder="Search items…">
+      </div>
+    </div>
+    <div class="item-list" id="item-list">
+      <div class="loader"><span class="spin"></span> Loading stock…</div>
+    </div>
+    <button class="fab" id="btn-add-item">+</button>
+  </section>
+
+</div>
+
+<!-- ===================== ADD ITEM MODAL ===================== -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <div class="modal-sheet">
+    <h2>Add new item</h2>
+    <p class="hint">This appears instantly for every staff member.</p>
+    <div class="field">
+      <label>Item name</label>
+      <input type="text" id="input-item-name" placeholder="e.g. Cotton Print – Red">
+    </div>
+    <div class="field">
+      <label>Starting quantity</label>
+      <input type="number" id="input-item-qty" placeholder="0" inputmode="numeric" min="0">
+    </div>
+    <div class="field">
+      <label>Unit</label>
+      <div class="unit-choices" id="unit-choices">
+        <div class="unit-choice active" data-unit="rolls">Rolls</div>
+        <div class="unit-choice" data-unit="box">Box</div>
+        <div class="unit-choice" data-unit="meter">Meter</div>
+        <div class="unit-choice" data-unit="yard">Yard</div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-cancel-add">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-item">Save item</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="config.js"></script>
+
+<script>
+/* =====================================================================
+   ISLAM INTERNATIONAL STOCKS — app logic
+   ===================================================================== */
+
+const SHOPS = [
+  { id:'old',    name:'Old Shop',    color:'#B08D57', dark:'#8a6d40' },
+  { id:'saiful', name:'Saiful Shop', color:'#1F6B45', dark:'#154d32' },
+  { id:'rakib',  name:'Rakib Shop',  color:'#1B5A63', dark:'#123f46' },
+  { id:'liwa',   name:'Liwa Shop',   color:'#9C5A36', dark:'#743f27' },
+];
+
+let app, auth, db, currentUser = null;
+let firebaseReady = false;
+let unsubItems = null, unsubGlobalActivity = null;
+let currentShop = null;
+let itemsCache = [];
+let selectedUnit = 'rolls';
+
+function $(id){ return document.getElementById(id); }
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  $(id).classList.add('active');
+}
+function toast(msg){
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._h);
+  toast._h = setTimeout(()=> t.classList.remove('show'), 2200);
+}
+function timeAgo(ts){
+  if(!ts) return 'just now';
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  const s = Math.floor((Date.now() - d.getTime())/1000);
+  if(s < 5) return 'just now';
+  if(s < 60) return s + 's ago';
+  const m = Math.floor(s/60);
+  if(m < 60) return m + 'm ago';
+  const h = Math.floor(m/60);
+  if(h < 24) return h + 'h ago';
+  const days = Math.floor(h/24);
+  return days + 'd ago';
+}
+
+/* ---------------- Firebase init ---------------- */
+function initFirebase(){
+  try{
+    if(!firebaseConfig || firebaseConfig.apiKey.startsWith('PASTE_')){
+      $('login-error').style.display = 'block';
+      $('login-error').textContent = 'This app is not set up yet — open config.js and paste your Firebase project keys. See README.md for the 10-minute setup guide.';
+      return;
+    }
+    app = firebase.initializeApp(firebaseConfig);
+    auth = firebase.auth();
+    db = firebase.firestore();
+    db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+    firebaseReady = true;
+
+    auth.onAuthStateChanged(user => {
+      if(user){
+        const email = (user.email || '').toLowerCase();
+        const allowed = !ALLOWED_STAFF_EMAILS.length ||
+          ALLOWED_STAFF_EMAILS.map(e=>e.toLowerCase()).includes(email);
+        if(!allowed){
+          $('login-error').style.display='block';
+          $('login-error').textContent = 'This Google account (' + user.email + ') is not on the staff list for this shop. Ask Ehshan to add it in config.js.';
+          auth.signOut();
+          return;
+        }
+        currentUser = user;
+        onSignedIn(user);
+      } else {
+        currentUser = null;
+        showScreen('screen-login');
+      }
+    });
+  }catch(err){
+    console.error(err);
+    $('login-error').style.display='block';
+    $('login-error').textContent = 'Setup error: ' + err.message;
+  }
+}
+
+$('btn-google-signin').addEventListener('click', () => {
+  if(!firebaseReady){ toast('App not configured yet'); return; }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  auth.signInWithPopup(provider).catch(err => {
+    $('login-error').style.display='block';
+    $('login-error').textContent = err.message;
+  });
+});
+
+$('user-chip').addEventListener('click', () => {
+  if(confirm('Sign out of Islam International Stocks?')) auth.signOut();
+});
+
+function onSignedIn(user){
+  $('user-photo').src = user.photoURL || 'icons/icon-192.png';
+  $('user-fname').textContent = (user.displayName || user.email || '').split(' ')[0];
+  $('welcome-name').textContent = 'Welcome, ' + (user.displayName || 'staff').split(' ')[0];
+  renderShopGrid();
+  listenGlobalActivity();
+  showScreen('screen-shops');
+}
+
+/* ---------------- Shop grid ---------------- */
+function renderShopGrid(){
+  const grid = $('shop-grid');
+  grid.innerHTML = '';
+  SHOPS.forEach(shop => {
+    const card = document.createElement('button');
+    card.className = 'shop-card';
+    card.style.background = `linear-gradient(160deg, ${shop.color}, ${shop.dark})`;
+    card.innerHTML = `
+      <div class="glow"></div>
+      <div><div class="label">Islam International</div><h2>${shop.name}</h2></div>
+      <div class="meta">
+        <span class="count" id="count-${shop.id}">…</span>
+        <span class="arrow">→</span>
+      </div>`;
+    card.addEventListener('click', () => openShop(shop));
+    grid.appendChild(card);
+
+    db.collection('shops').doc(shop.id).collection('items').onSnapshot(snap => {
+      const el = $('count-' + shop.id);
+      if(el) el.textContent = snap.size + (snap.size === 1 ? ' item' : ' items');
+    });
+  });
+}
+
+/* ---------------- Global activity (shop picker screen) ---------------- */
+function listenGlobalActivity(){
+  if(unsubGlobalActivity) unsubGlobalActivity();
+  unsubGlobalActivity = db.collection('activity').orderBy('timestamp','desc').limit(8)
+    .onSnapshot(snap => {
+      const box = $('global-activity');
+      if(snap.empty){
+        box.innerHTML = '<div class="empty-note">Nothing recorded yet — add your first item in a shop.</div>';
+        return;
+      }
+      box.innerHTML = '';
+      snap.forEach(doc => box.appendChild(activityRow(doc.data())));
+    }, err => console.error(err));
+}
+
+function activityRow(a){
+  const shop = SHOPS.find(s => s.id === a.shopId) || {color:'#999'};
+  const row = document.createElement('div');
+  row.className = 'activity-item';
+  let verb = 'updated';
+  if(a.action === 'created') verb = 'added a new item';
+  else if(a.action === 'increased') verb = `added ${a.delta}`;
+  else if(a.action === 'decreased') verb = `removed ${a.delta}`;
+  else if(a.action === 'deleted') verb = 'deleted';
+  row.innerHTML = `
+    <span class="dot" style="background:${shop.color}"></span>
+    <div class="txt">
+      <b>${escapeHtml(a.userName || 'Someone')}</b> ${verb} of <b>${escapeHtml(a.itemName || 'item')}</b> in ${escapeHtml(a.shopName || '')}
+      ${a.qtyAfter !== undefined ? `<span style="opacity:.7"> — now ${a.qtyAfter} ${a.unit || ''}</span>` : ''}
+      <div class="time">${timeAgo(a.timestamp)}</div>
+    </div>`;
+  return row;
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------------- Shop detail screen ---------------- */
+function openShop(shop){
+  currentShop = shop;
+  $('shop-title').textContent = shop.name;
+  $('shop-header-bg').style.background = `linear-gradient(160deg, ${shop.color}, ${shop.dark})`;
+  $('search-input').value = '';
+  $('item-list').innerHTML = '<div class="loader"><span class="spin"></span> Loading stock…</div>';
+  showScreen('screen-shop');
+
+  if(unsubItems) unsubItems();
+  unsubItems = db.collection('shops').doc(shop.id).collection('items')
+    .onSnapshot(snap => {
+      itemsCache = [];
+      snap.forEach(doc => itemsCache.push({ id: doc.id, ...doc.data() }));
+      itemsCache.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+      renderItems();
+    }, err => {
+      $('item-list').innerHTML = '<div class="loader">Could not load stock: ' + err.message + '</div>';
+    });
+}
+
+$('btn-back').addEventListener('click', () => {
+  if(unsubItems){ unsubItems(); unsubItems = null; }
+  currentShop = null;
+  showScreen('screen-shops');
+});
+
+$('search-input').addEventListener('input', renderItems);
+
+function renderItems(){
+  const list = $('item-list');
+  const q = $('search-input').value.trim().toLowerCase();
+  const filtered = q ? itemsCache.filter(i => (i.name||'').toLowerCase().includes(q)) : itemsCache;
+
+  if(!filtered.length){
+    list.innerHTML = `<div class="empty-note" style="text-align:center; padding:40px 20px;">
+      ${itemsCache.length ? 'No items match your search.' : 'No items yet. Tap + to add the first item for this shop.'}
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  filtered.forEach(item => list.appendChild(itemCard(item)));
+}
+
+function itemCard(item){
+  const card = document.createElement('div');
+  card.className = 'item-card';
+  const low = item.qty <= 2;
+  card.innerHTML = `
+    <div class="top">
+      <div>
+        <h3>${escapeHtml(item.name)}</h3>
+        <div class="updated">Updated by ${escapeHtml(item.updatedBy || 'staff')} · ${timeAgo(item.updatedAt)}</div>
+      </div>
+      <span class="unit-badge" style="background:${currentShop.color}22; color:${currentShop.dark}">${item.unit}</span>
+    </div>
+    <div class="stitch" style="margin:12px 0"></div>
+    <div class="qty-row">
+      <div class="stepper">
+        <button class="step-btn minus" data-id="${item.id}" data-dir="-1">–</button>
+        <div class="qty-display">
+          <span class="qty-num" id="qty-${item.id}" style="color:${low ? 'var(--danger)' : 'var(--ink)'}">${item.qty}</span>
+          <span class="qty-unit">${item.unit}</span>
+        </div>
+        <button class="step-btn plus" data-id="${item.id}" data-dir="1" style="background:${currentShop.color}">+</button>
+      </div>
+      <button class="del-btn" data-del="${item.id}">🗑</button>
+    </div>`;
+  return card;
+}
+
+$('item-list').addEventListener('click', (e) => {
+  const stepBtn = e.target.closest('[data-dir]');
+  if(stepBtn){ changeQty(stepBtn.dataset.id, parseInt(stepBtn.dataset.dir,10)); return; }
+  const delBtn = e.target.closest('[data-del]');
+  if(delBtn){ deleteItem(delBtn.dataset.del); }
+});
+
+function changeQty(itemId, dir){
+  const item = itemsCache.find(i => i.id === itemId);
+  if(!item) return;
+  const newQty = Math.max(0, (item.qty||0) + dir);
+  const numEl = $('qty-' + itemId);
+  if(numEl){ numEl.textContent = newQty; numEl.classList.remove('bump'); void numEl.offsetWidth; numEl.classList.add('bump'); }
+
+  const ref = db.collection('shops').doc(currentShop.id).collection('items').doc(itemId);
+  ref.update({
+    qty: newQty,
+    updatedBy: (currentUser.displayName || currentUser.email || 'staff').split(' ')[0],
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(err => toast('Could not save: ' + err.message));
+
+  logActivity({
+    shopId: currentShop.id, shopName: currentShop.name,
+    itemName: item.name, unit: item.unit,
+    action: dir > 0 ? 'increased' : 'decreased',
+    delta: 1, qtyAfter: newQty
+  });
+}
+
+function deleteItem(itemId){
+  const item = itemsCache.find(i => i.id === itemId);
+  if(!item) return;
+  if(!confirm(`Delete "${item.name}" from ${currentShop.name}? This can't be undone.`)) return;
+  db.collection('shops').doc(currentShop.id).collection('items').doc(itemId).delete()
+    .then(() => {
+      logActivity({ shopId: currentShop.id, shopName: currentShop.name, itemName: item.name, unit: item.unit, action: 'deleted' });
+      toast('Item deleted');
+    })
+    .catch(err => toast('Could not delete: ' + err.message));
+}
+
+function logActivity(data){
+  db.collection('activity').add({
+    ...data,
+    userName: (currentUser.displayName || currentUser.email || 'Staff').split(' ')[0],
+    userEmail: currentUser.email || '',
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(err => console.error('activity log failed', err));
+}
+
+/* ---------------- Add item modal ---------------- */
+$('btn-add-item').addEventListener('click', () => {
+  $('input-item-name').value = '';
+  $('input-item-qty').value = '';
+  selectedUnit = 'rolls';
+  document.querySelectorAll('.unit-choice').forEach(u => u.classList.toggle('active', u.dataset.unit === 'rolls'));
+  $('modal-backdrop').classList.add('active');
+  setTimeout(() => $('input-item-name').focus(), 250);
+});
+$('btn-cancel-add').addEventListener('click', () => $('modal-backdrop').classList.remove('active'));
+$('modal-backdrop').addEventListener('click', (e) => { if(e.target.id === 'modal-backdrop') $('modal-backdrop').classList.remove('active'); });
+
+$('unit-choices').addEventListener('click', (e) => {
+  const el = e.target.closest('.unit-choice');
+  if(!el) return;
+  selectedUnit = el.dataset.unit;
+  document.querySelectorAll('.unit-choice').forEach(u => u.classList.remove('active'));
+  el.classList.add('active');
+});
+
+$('btn-save-item').addEventListener('click', () => {
+  const name = $('input-item-name').value.trim();
+  const qty = parseInt($('input-item-qty').value, 10) || 0;
+  if(!name){ toast('Enter an item name'); return; }
+  if(!currentShop) return;
+
+  db.collection('shops').doc(currentShop.id).collection('items').add({
+    name, qty, unit: selectedUnit,
+    updatedBy: (currentUser.displayName || currentUser.email || 'staff').split(' ')[0],
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    logActivity({ shopId: currentShop.id, shopName: currentShop.name, itemName: name, unit: selectedUnit, action: 'created', qtyAfter: qty });
+    $('modal-backdrop').classList.remove('active');
+    toast('Item added');
+  }).catch(err => toast('Could not save: ' + err.message));
+});
+
+/* ---------------- Service worker ---------------- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+
+initFirebase();
+</script>
+</body>
+</html>

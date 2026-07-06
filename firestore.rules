@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Anyone signed in with Google can read and write stock + activity.
+    // This is the simple starting point. If you added ALLOWED_STAFF_EMAILS
+    // in config.js, the app itself blocks other accounts from using it —
+    // but that check happens in the app, not the database. If you want the
+    // DATABASE to also refuse non-staff accounts (recommended once you hand
+    // this to staff), replace `request.auth != null` below with the
+    // allowlist version shown underneath.
+
+    match /shops/{shopId}/items/{itemId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /activity/{activityId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+
+// ---------------------------------------------------------------------
+// STRICTER VERSION (recommended): only your staff's Gmail addresses can
+// read or write, enforced by the database itself. Replace the two rule
+// blocks above with these, and edit the email list to match your staff:
+// ---------------------------------------------------------------------
+//
+// function isStaff() {
+//   return request.auth != null && request.auth.token.email in [
+//     'you@gmail.com',
+//     'saiful@gmail.com',
+//     'rakib@gmail.com'
+//   ];
+// }
+//
+// match /shops/{shopId}/items/{itemId} {
+//   allow read, write: if isStaff();
+// }
+//
+// match /activity/{activityId} {
+//   allow read, write: if isStaff();
+// }
