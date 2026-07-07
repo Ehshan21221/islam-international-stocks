@@ -162,6 +162,16 @@
 
   .activity-strip{padding:0 20px 24px;}
   .activity-strip h3{font-size:13px; text-transform:uppercase; letter-spacing:.5px; color:var(--ink-soft); margin:6px 0 10px; font-weight:800;}
+  .history-btn{
+    width:38px; height:38px; border-radius:50%; border:1px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.08); color:var(--cream); font-size:17px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .btn-load-more-history{
+    display:block; width:100%; margin-top:6px; padding:13px; border-radius:12px;
+    background:var(--cream-dim); border:1.5px solid rgba(15,36,28,.1); color:var(--ink);
+    font-weight:700; font-size:13.5px; cursor:pointer;
+  }
   .activity-item{
     display:flex; gap:10px; align-items:flex-start; padding:10px 0;
   }
@@ -427,15 +437,26 @@
         <h1>Islam International</h1>
         <span id="welcome-name">Stocks</span>
       </div>
+      <button class="history-btn" id="btn-open-history" title="History">🕘</button>
       <span class="live-pill"><span class="live-dot"></span>Live</span>
       <div class="user-chip" id="user-chip"><img id="user-photo" src="" alt=""><span id="user-fname"></span></div>
     </div>
 
     <div class="shop-grid" id="shop-grid"><!-- shop cards injected --></div>
+  </section>
 
-    <div class="activity-strip">
-      <h3>Recent changes</h3>
-      <div id="global-activity"><div class="empty-note">Nothing recorded yet — add your first item in a shop.</div></div>
+  <!-- ===================== HISTORY SCREEN ===================== -->
+  <section id="screen-history" class="screen">
+    <div class="topbar">
+      <button class="back-btn" id="btn-history-back">←</button>
+      <div class="titles">
+        <h1>Full history</h1>
+        <span>Every change, every shop</span>
+      </div>
+    </div>
+    <div class="activity-strip" style="padding-top:16px;">
+      <div id="history-list"><div class="loader"><span class="spin"></span> Loading history…</div></div>
+      <button class="btn-load-more-history" id="btn-load-more-history">Load older changes</button>
     </div>
   </section>
 
@@ -574,7 +595,7 @@ const SHOPS = [
 
 let app, auth, db, currentUser = null;
 let firebaseReady = false;
-let unsubItems = null, unsubGlobalActivity = null;
+let unsubItems = null, unsubHistory = null;
 let currentShop = null;
 let itemsCache = [];
 let selectedUnit = 'rolls';
@@ -665,7 +686,6 @@ function onSignedIn(user){
   $('user-fname').textContent = (user.displayName || user.email || '').split(' ')[0];
   $('welcome-name').textContent = 'Welcome, ' + (user.displayName || 'staff').split(' ')[0];
   renderShopGrid();
-  listenGlobalActivity();
   showScreen('screen-shops');
 }
 
@@ -694,19 +714,37 @@ function renderShopGrid(){
   });
 }
 
-/* ---------------- Global activity (shop picker screen) ---------------- */
-function listenGlobalActivity(){
-  if(unsubGlobalActivity) unsubGlobalActivity();
-  unsubGlobalActivity = db.collection('activity').orderBy('timestamp','desc').limit(8)
+/* ---------------- Full history screen (never trimmed — Load older to go back further) ---------------- */
+let historyLimit = 150;
+
+$('btn-open-history').addEventListener('click', () => {
+  historyLimit = 150;
+  listenHistory();
+  showScreen('screen-history');
+});
+$('btn-history-back').addEventListener('click', () => {
+  if(unsubHistory){ unsubHistory(); unsubHistory = null; }
+  showScreen('screen-shops');
+});
+$('btn-load-more-history').addEventListener('click', () => {
+  historyLimit += 150;
+  listenHistory();
+});
+
+function listenHistory(){
+  if(unsubHistory) unsubHistory();
+  unsubHistory = db.collection('activity').orderBy('timestamp','desc').limit(historyLimit)
     .onSnapshot(snap => {
-      const box = $('global-activity');
+      const box = $('history-list');
       if(snap.empty){
         box.innerHTML = '<div class="empty-note">Nothing recorded yet — add your first item in a shop.</div>';
         return;
       }
       box.innerHTML = '';
       snap.forEach(doc => box.appendChild(activityRow(doc.data())));
-    }, err => console.error(err));
+    }, err => {
+      $('history-list').innerHTML = 'Could not load history: ' + err.message;
+    });
 }
 
 function activityRow(a){
@@ -718,6 +756,7 @@ function activityRow(a){
   else if(a.action === 'increased') verb = `added ${a.delta}`;
   else if(a.action === 'decreased') verb = `removed ${a.delta}`;
   else if(a.action === 'deleted') verb = 'deleted';
+  else if(a.action === 'linked-barcode') verb = 'linked a barcode to';
   row.innerHTML = `
     <span class="dot" style="background:${shop.color}"></span>
     <div class="txt">
@@ -911,6 +950,7 @@ $('btn-save-item').addEventListener('click', () => {
       pendingScanBarcode = null;
       addScanLogEntry(name, qty, qty, true);
       showScanResult('success', name, `Registered · now ${qty} ${selectedUnit}`);
+      beepAdded();
       setTimeout(() => $('scan-input').focus(), 150);
     } else {
       toast('Item added');
@@ -921,6 +961,7 @@ $('btn-save-item').addEventListener('click', () => {
 /* ---------------- Barcode scanning ---------------- */
 $('btn-open-scan').addEventListener('click', () => {
   if(!currentShop) return;
+  ensureAudio();
   $('scan-shop-title').textContent = currentShop.name + ' — Scan';
   scanSessionLog = [];
   renderScanLog();
@@ -970,6 +1011,34 @@ $('scan-input').addEventListener('keydown', (e) => {
   }
 });
 
+/* ---------------- Beep feedback (Web Audio — no sound file needed) ---------------- */
+let audioCtx = null;
+function ensureAudio(){
+  try{
+    if(!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }catch(e){ /* audio not available — beeps just won't play */ }
+}
+function beepTone(freq, duration, type){
+  if(!audioCtx) return;
+  try{
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.28, audioCtx.currentTime + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration/1000);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + duration/1000 + 0.03);
+  }catch(e){}
+}
+function beepAdded(){ beepTone(1180, 110, 'sine'); }
+function beepRemoved(){ beepTone(680, 110, 'sine'); }
+function beepNewItem(){ beepTone(950, 80, 'sine'); setTimeout(() => beepTone(1300, 120, 'sine'), 100); }
+function beepError(){ beepTone(220, 140, 'square'); setTimeout(() => beepTone(220, 140, 'square'), 170); }
+
 function normalizeBarcode(raw){
   if(!raw) return '';
   let code = String(raw).trim();
@@ -991,6 +1060,7 @@ function processScan(rawCode){
     if(!item){
       showScanResult('error', code, 'Not found in this shop — switch to Add Stock to register it first.');
       if(navigator.vibrate) navigator.vibrate([40,60,40]);
+      beepError();
       return;
     }
     const newQty = Math.max(0, (item.qty||0) - 1);
@@ -1003,6 +1073,7 @@ function processScan(rawCode){
     showScanResult('success', item.name, `Sold 1 · now ${newQty} ${item.unit}`);
     addScanLogEntry(item.name, -1, newQty);
     if(navigator.vibrate) navigator.vibrate(35);
+    beepRemoved();
   } else {
     if(item){
       const newQty = (item.qty||0) + 1;
@@ -1015,10 +1086,12 @@ function processScan(rawCode){
       showScanResult('success', item.name, `Added 1 · now ${newQty} ${item.unit}`);
       addScanLogEntry(item.name, 1, newQty);
       if(navigator.vibrate) navigator.vibrate(35);
+      beepAdded();
     } else {
       // Unknown barcode — open the add-item modal pre-filled, ready to register it,
       // with an option to instead link it to an item that already exists.
       if(cameraActive) closeCameraScanner();
+      beepNewItem();
       pendingScanBarcode = code;
       $('barcode-field').style.display = '';
       $('input-item-barcode').value = code;
@@ -1172,6 +1245,7 @@ function linkBarcodeToItem(item){
     $('link-modal-backdrop').classList.remove('active');
     pendingScanBarcode = null;
     showScanResult('success', item.name, `Barcode linked · now scan it to update stock`);
+    beepAdded();
     addScanLogEntry(item.name, 0, item.qty, true);
     setTimeout(() => $('scan-input').focus(), 150);
   }).catch(err => toast('Could not link barcode: ' + err.message));
