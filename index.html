@@ -176,6 +176,36 @@
     background:var(--cream-dim); border:1.5px solid rgba(15,36,28,.1); color:var(--ink);
     font-weight:700; font-size:13.5px; cursor:pointer;
   }
+
+  /* ---------- ADMIN PANEL ---------- */
+  .admin-nav-tabs{display:flex; gap:8px; padding:16px 16px 4px; flex-wrap:wrap;}
+  .admin-nav-tab, .range-tab{
+    padding:9px 14px; border-radius:999px; border:1.5px solid rgba(15,36,28,.14);
+    background:#fff; font-size:12.5px; font-weight:700; color:var(--ink-soft); cursor:pointer;
+  }
+  .admin-nav-tab.active, .range-tab.active{background:var(--forest); border-color:var(--forest); color:#fff;}
+  .admin-panel{padding:16px;}
+  .admin-panel select, .admin-panel input[type=number], .admin-panel input[type=text]{
+    width:100%; border:1.5px solid rgba(15,36,28,.14); border-radius:12px;
+    padding:12px 14px; font-family:'Manrope'; font-size:14px; background:#fff; outline:none;
+  }
+  .admin-panel .field{margin-bottom:14px;}
+  .admin-panel .field label{display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-soft); margin-bottom:6px;}
+  .low-stock-row, .search-result-row{
+    display:flex; justify-content:space-between; align-items:center;
+    background:#fff; border-radius:14px; padding:12px 14px; margin-bottom:10px;
+  }
+  .low-stock-row{border-left:4px solid var(--danger);}
+  .search-result-row{cursor:pointer;}
+  .search-result-row:active{background:var(--cream-dim);}
+  .low-stock-row .n, .search-result-row .n{font-weight:700; font-size:14px;}
+  .low-stock-row .s, .search-result-row .s{font-size:11px; color:var(--ink-soft); margin-top:2px;}
+  .low-stock-row .q{font-family:'IBM Plex Mono',monospace; font-weight:800; color:var(--danger); font-size:16px;}
+  .search-result-row .q{font-family:'IBM Plex Mono',monospace; font-weight:700; color:var(--ink); font-size:14px;}
+  .staff-row{background:#fff; border-radius:14px; padding:14px; margin-bottom:10px;}
+  .staff-row .name{font-weight:700; font-size:15px;}
+  .staff-row .stats{display:flex; gap:14px; margin-top:8px; font-size:12px; color:var(--ink-soft); flex-wrap:wrap;}
+  .staff-row .stats b{color:var(--ink); font-family:'IBM Plex Mono',monospace;}
   .activity-item{
     display:flex; gap:10px; align-items:flex-start; padding:10px 0;
   }
@@ -447,6 +477,7 @@
       <div class="topbar-row2">
         <span class="live-pill"><span class="live-dot"></span>Live</span>
         <button class="history-btn" id="btn-open-history">🕘 History</button>
+        <button class="history-btn" id="btn-open-admin">🛠 Tools</button>
       </div>
     </div>
 
@@ -465,6 +496,64 @@
     <div class="activity-strip" style="padding-top:16px;">
       <div id="history-list"><div class="loader"><span class="spin"></span> Loading history…</div></div>
       <button class="btn-load-more-history" id="btn-load-more-history">Load older changes</button>
+    </div>
+  </section>
+
+  <!-- ===================== ADMIN PANEL SCREEN ===================== -->
+  <section id="screen-admin" class="screen">
+    <div class="topbar">
+      <button class="back-btn" id="btn-admin-back">←</button>
+      <div class="titles">
+        <h1>Shop Tools</h1>
+        <span>Low stock, transfer & search</span>
+      </div>
+    </div>
+    <div class="admin-nav-tabs">
+      <button class="admin-nav-tab active" data-tab="lowstock">🔻 Low Stock</button>
+      <button class="admin-nav-tab" data-tab="transfer">↔️ Transfer</button>
+      <button class="admin-nav-tab" data-tab="search">🔎 Search All</button>
+      <button class="admin-nav-tab" id="tab-staff-activity" data-tab="staff" style="display:none;">👤 Staff Activity</button>
+    </div>
+
+    <div class="admin-panel" id="admin-panel-lowstock">
+      <p class="hint" style="padding:0 4px 12px;">Anything below 3, across all 4 shops, shown here — lowest first.</p>
+      <div id="lowstock-list"></div>
+    </div>
+
+    <div class="admin-panel" id="admin-panel-transfer" style="display:none;">
+      <div class="field">
+        <label>From shop</label>
+        <select id="transfer-from"></select>
+      </div>
+      <div class="field">
+        <label>To shop</label>
+        <select id="transfer-to"></select>
+      </div>
+      <div class="field">
+        <label>Item</label>
+        <select id="transfer-item"></select>
+      </div>
+      <div class="field">
+        <label>Quantity to move</label>
+        <input type="number" id="transfer-qty" min="1" placeholder="e.g. 5">
+      </div>
+      <button class="btn btn-primary" id="btn-do-transfer" style="width:100%;">Transfer stock</button>
+      <div id="transfer-status" style="margin-top:12px; font-size:13px; font-weight:600;"></div>
+    </div>
+
+    <div class="admin-panel" id="admin-panel-search" style="display:none;">
+      <div class="field">
+        <input type="text" id="admin-search-input" placeholder="Search an item across every shop…">
+      </div>
+      <div id="admin-search-results"><div class="empty-note" style="padding:20px 4px;">Type an item name to search every shop at once.</div></div>
+    </div>
+
+    <div class="admin-panel" id="admin-panel-staff" style="display:none;">
+      <div class="admin-nav-tabs" style="padding:0 0 14px;">
+        <button class="range-tab active" data-range="week">Last 7 days</button>
+        <button class="range-tab" data-range="all">All logged</button>
+      </div>
+      <div id="staff-summary-list"></div>
     </div>
   </section>
 
@@ -610,6 +699,8 @@ let selectedUnit = 'rolls';
 let scanMode = 'add';
 let pendingScanBarcode = null;
 let scanSessionLog = [];
+let isAdmin = false;
+let allItemsCache = { old: [], saiful: [], rakib: [], liwa: [] };
 
 function $(id){ return document.getElementById(id); }
 function showScreen(id){
@@ -693,6 +784,9 @@ function onSignedIn(user){
   $('user-photo').src = user.photoURL || 'icons/icon-192.png';
   $('user-fname').textContent = (user.displayName || user.email || '').split(' ')[0];
   $('welcome-name').textContent = 'Welcome, ' + (user.displayName || 'staff').split(' ')[0];
+  const email = (user.email || '').toLowerCase();
+  isAdmin = typeof ADMIN_EMAILS !== 'undefined' && ADMIN_EMAILS.map(e => e.toLowerCase()).includes(email);
+  $('tab-staff-activity').style.display = isAdmin ? '' : 'none';
   renderShopGrid();
   showScreen('screen-shops');
 }
@@ -718,6 +812,10 @@ function renderShopGrid(){
     db.collection('shops').doc(shop.id).collection('items').onSnapshot(snap => {
       const el = $('count-' + shop.id);
       if(el) el.textContent = snap.size + (snap.size === 1 ? ' item' : ' items');
+      const items = [];
+      snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+      allItemsCache[shop.id] = items;
+      refreshActiveAdminPanel();
     });
   });
 }
@@ -1257,6 +1355,222 @@ function linkBarcodeToItem(item){
     addScanLogEntry(item.name, 0, item.qty, true);
     setTimeout(() => $('scan-input').focus(), 150);
   }).catch(err => toast('Could not link barcode: ' + err.message));
+}
+
+/* ---------------- Admin Panel ---------------- */
+$('btn-open-admin').addEventListener('click', () => {
+  showScreen('screen-admin');
+  document.querySelectorAll('.admin-nav-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === 'lowstock'));
+  document.querySelectorAll('.admin-panel').forEach(p => p.style.display = 'none');
+  $('admin-panel-lowstock').style.display = '';
+  renderLowStock();
+  populateTransferDropdowns();
+});
+$('btn-admin-back').addEventListener('click', () => showScreen('screen-shops'));
+
+document.querySelectorAll('.admin-nav-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.admin-nav-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.querySelectorAll('.admin-panel').forEach(p => p.style.display = 'none');
+    $('admin-panel-' + tab).style.display = '';
+    if(tab === 'lowstock') renderLowStock();
+    else if(tab === 'search') renderAdminSearch();
+    else if(tab === 'transfer') populateTransferItemDropdown();
+    else if(tab === 'staff') renderStaffSummary(currentStaffRange);
+  });
+});
+
+function refreshActiveAdminPanel(){
+  if(!$('screen-admin').classList.contains('active')) return;
+  const activeTab = document.querySelector('.admin-nav-tab.active');
+  if(!activeTab) return;
+  const tab = activeTab.dataset.tab;
+  if(tab === 'lowstock') renderLowStock();
+  else if(tab === 'search') renderAdminSearch();
+  else if(tab === 'transfer') populateTransferItemDropdown();
+}
+
+/* ---- Low stock (below 3, across all 4 shops) ---- */
+function renderLowStock(){
+  const rows = [];
+  SHOPS.forEach(shop => {
+    (allItemsCache[shop.id] || []).forEach(item => {
+      if((item.qty || 0) < 3) rows.push({ shop, item });
+    });
+  });
+  rows.sort((a, b) => a.item.qty - b.item.qty);
+  const box = $('lowstock-list');
+  if(!rows.length){
+    box.innerHTML = '<div class="empty-note" style="padding:20px 4px;">Nothing is low right now — everything is 3 or above.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  rows.forEach(({ shop, item }) => {
+    const row = document.createElement('div');
+    row.className = 'low-stock-row';
+    row.innerHTML = `<div><div class="n">${escapeHtml(item.name)}</div><div class="s">${escapeHtml(shop.name)}</div></div><div class="q">${item.qty} ${escapeHtml(item.unit)}</div>`;
+    box.appendChild(row);
+  });
+}
+
+/* ---- Search across all shops ---- */
+$('admin-search-input').addEventListener('input', renderAdminSearch);
+function renderAdminSearch(){
+  const q = $('admin-search-input').value.trim().toLowerCase();
+  const box = $('admin-search-results');
+  if(!q){
+    box.innerHTML = '<div class="empty-note" style="padding:20px 4px;">Type an item name to search every shop at once.</div>';
+    return;
+  }
+  const rows = [];
+  SHOPS.forEach(shop => {
+    (allItemsCache[shop.id] || []).forEach(item => {
+      if((item.name || '').toLowerCase().includes(q)) rows.push({ shop, item });
+    });
+  });
+  if(!rows.length){
+    box.innerHTML = '<div class="empty-note" style="padding:20px 4px;">No matches.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  rows.forEach(({ shop, item }) => {
+    const row = document.createElement('div');
+    row.className = 'search-result-row';
+    row.innerHTML = `<div><div class="n">${escapeHtml(item.name)}</div><div class="s">${escapeHtml(shop.name)}</div></div><div class="q">${item.qty} ${escapeHtml(item.unit)}</div>`;
+    row.addEventListener('click', () => {
+      openShop(shop);
+      setTimeout(() => {
+        $('search-input').value = item.name;
+        renderItems();
+      }, 300);
+    });
+    box.appendChild(row);
+  });
+}
+
+/* ---- Transfer stock between shops ---- */
+function populateTransferDropdowns(){
+  const fromSel = $('transfer-from'), toSel = $('transfer-to');
+  const options = SHOPS.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+  fromSel.innerHTML = options;
+  toSel.innerHTML = options;
+  toSel.value = SHOPS[1] ? SHOPS[1].id : SHOPS[0].id;
+  populateTransferItemDropdown();
+}
+$('transfer-from').addEventListener('change', populateTransferItemDropdown);
+function populateTransferItemDropdown(){
+  const fromId = $('transfer-from').value;
+  const items = allItemsCache[fromId] || [];
+  const sel = $('transfer-item');
+  if(!items.length){
+    sel.innerHTML = '<option value="">No items in this shop</option>';
+    return;
+  }
+  sel.innerHTML = items.map(i => `<option value="${i.id}">${escapeHtml(i.name)} (${i.qty} ${escapeHtml(i.unit)})</option>`).join('');
+}
+
+$('btn-do-transfer').addEventListener('click', () => {
+  const fromId = $('transfer-from').value;
+  const toId = $('transfer-to').value;
+  const itemId = $('transfer-item').value;
+  const qty = parseInt($('transfer-qty').value, 10);
+  const statusEl = $('transfer-status');
+
+  if(fromId === toId){ statusEl.style.color = 'var(--danger)'; statusEl.textContent = 'Pick two different shops.'; return; }
+  if(!itemId){ statusEl.style.color = 'var(--danger)'; statusEl.textContent = 'Pick an item.'; return; }
+  if(!qty || qty <= 0){ statusEl.style.color = 'var(--danger)'; statusEl.textContent = 'Enter how many to move.'; return; }
+
+  const fromShop = SHOPS.find(s => s.id === fromId);
+  const toShop = SHOPS.find(s => s.id === toId);
+  const sourceItem = (allItemsCache[fromId] || []).find(i => i.id === itemId);
+  if(!sourceItem){ statusEl.style.color = 'var(--danger)'; statusEl.textContent = 'Item not found — try reopening the panel.'; return; }
+  if(qty > sourceItem.qty){ statusEl.style.color = 'var(--danger)'; statusEl.textContent = `Only ${sourceItem.qty} ${sourceItem.unit} available in ${fromShop.name}.`; return; }
+
+  const staffName = (currentUser.displayName || currentUser.email || 'staff').split(' ')[0];
+  const newSourceQty = sourceItem.qty - qty;
+
+  db.collection('shops').doc(fromId).collection('items').doc(itemId).update({
+    qty: newSourceQty, updatedBy: staffName, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(err => toast('Transfer error: ' + err.message));
+  logActivity({ shopId: fromId, shopName: fromShop.name, itemName: `${sourceItem.name} → ${toShop.name}`, unit: sourceItem.unit, action: 'decreased', delta: qty, qtyAfter: newSourceQty });
+
+  const destItem = (allItemsCache[toId] || []).find(i => (i.name || '').toLowerCase() === (sourceItem.name || '').toLowerCase());
+  if(destItem){
+    const newDestQty = (destItem.qty || 0) + qty;
+    db.collection('shops').doc(toId).collection('items').doc(destItem.id).update({
+      qty: newDestQty, updatedBy: staffName, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(err => toast('Transfer error: ' + err.message));
+    logActivity({ shopId: toId, shopName: toShop.name, itemName: `${sourceItem.name} (from ${fromShop.name})`, unit: sourceItem.unit, action: 'increased', delta: qty, qtyAfter: newDestQty });
+  } else {
+    db.collection('shops').doc(toId).collection('items').add({
+      name: sourceItem.name, qty: qty, unit: sourceItem.unit, barcode: null,
+      updatedBy: staffName, updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(() => {
+      logActivity({ shopId: toId, shopName: toShop.name, itemName: `${sourceItem.name} (from ${fromShop.name})`, unit: sourceItem.unit, action: 'created', qtyAfter: qty });
+    }).catch(err => toast('Transfer error: ' + err.message));
+  }
+
+  statusEl.style.color = 'var(--forest)';
+  statusEl.textContent = `Moved ${qty} ${sourceItem.unit} of ${sourceItem.name}: ${fromShop.name} → ${toShop.name}.`;
+  $('transfer-qty').value = '';
+  toast('Stock transferred');
+});
+
+/* ---- Staff activity summary ---- */
+let currentStaffRange = 'week';
+document.querySelectorAll('.range-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.range-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentStaffRange = btn.dataset.range;
+    renderStaffSummary(currentStaffRange);
+  });
+});
+
+function renderStaffSummary(range){
+  const box = $('staff-summary-list');
+  box.innerHTML = '<div class="loader"><span class="spin"></span> Loading…</div>';
+  db.collection('activity').orderBy('timestamp', 'desc').limit(1000).get().then(snap => {
+    const cutoff = range === 'week' ? Date.now() - 7 * 24 * 60 * 60 * 1000 : 0;
+    const summary = {};
+    snap.forEach(doc => {
+      const a = doc.data();
+      const ts = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate().getTime() : 0;
+      if(ts < cutoff) return;
+      const name = a.userName || 'Unknown';
+      if(!summary[name]) summary[name] = { total: 0, added: 0, removed: 0, created: 0, lastTs: 0 };
+      summary[name].total++;
+      if(a.action === 'increased') summary[name].added += (a.delta || 1);
+      if(a.action === 'decreased') summary[name].removed += (a.delta || 1);
+      if(a.action === 'created') summary[name].created++;
+      if(ts > summary[name].lastTs) summary[name].lastTs = ts;
+    });
+    const names = Object.keys(summary).sort((x, y) => summary[y].total - summary[x].total);
+    if(!names.length){
+      box.innerHTML = '<div class="empty-note" style="padding:20px 4px;">No activity in this range yet.</div>';
+      return;
+    }
+    box.innerHTML = '';
+    names.forEach(name => {
+      const s = summary[name];
+      const row = document.createElement('div');
+      row.className = 'staff-row';
+      row.innerHTML = `<div class="name">${escapeHtml(name)}</div>
+        <div class="stats">
+          <span>Total: <b>${s.total}</b></span>
+          <span>Added: <b>${s.added}</b></span>
+          <span>Removed: <b>${s.removed}</b></span>
+          <span>New items: <b>${s.created}</b></span>
+        </div>
+        <div class="time" style="margin-top:6px;">Last active ${timeAgo(new Date(s.lastTs))}</div>`;
+      box.appendChild(row);
+    });
+  }).catch(err => {
+    box.innerHTML = 'Could not load: ' + err.message;
+  });
 }
 
 /* ---------------- Service worker ---------------- */
