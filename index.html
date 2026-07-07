@@ -371,6 +371,18 @@
   }
   .btn-primary{background:var(--forest); color:#fff;}
   .btn-ghost{background:transparent; color:var(--ink-soft);}
+  .btn-link-existing{
+    width:100%; margin-top:14px; background:none; border:none;
+    color:var(--forest); font-size:13px; font-weight:700; text-decoration:underline;
+    cursor:pointer; padding:6px;
+  }
+  .link-item-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 4px; border-bottom:1px solid rgba(15,36,28,.08); cursor:pointer;
+  }
+  .link-item-row:active{background:var(--cream-dim);}
+  .link-item-row .n{font-weight:600; font-size:14px;}
+  .link-item-row .q{font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-soft);}
 
   .footer-credit{
     text-align:center; font-size:10.5px; color:var(--ink-soft); opacity:.55;
@@ -517,6 +529,22 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" id="btn-cancel-add">Cancel</button>
       <button class="btn btn-primary" id="btn-save-item">Save item</button>
+    </div>
+    <button class="btn-link-existing" id="btn-link-existing" style="display:none;">Link this barcode to an item I already have instead</button>
+  </div>
+</div>
+
+<!-- ===================== LINK BARCODE TO EXISTING ITEM MODAL ===================== -->
+<div class="modal-backdrop" id="link-modal-backdrop">
+  <div class="modal-sheet">
+    <h2>Link barcode to existing item</h2>
+    <p class="hint">Pick the item this barcode actually belongs to.</p>
+    <div class="field">
+      <input type="text" id="link-search-input" placeholder="Search your items…">
+    </div>
+    <div id="link-item-list" style="max-height:280px; overflow-y:auto; margin-bottom:14px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-link-cancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -832,6 +860,7 @@ function openAddItemModal(){
   pendingScanBarcode = null;
   $('barcode-field').style.display = 'none';
   $('input-item-barcode').value = '';
+  $('btn-link-existing').style.display = 'none';
   $('modal-title').textContent = 'Add new item';
   $('modal-hint').textContent = 'This appears instantly for every staff member.';
   $('input-item-name').value = '';
@@ -941,9 +970,22 @@ $('scan-input').addEventListener('keydown', (e) => {
   }
 });
 
-function processScan(code){
+function normalizeBarcode(raw){
+  if(!raw) return '';
+  let code = String(raw).trim();
+  // Some scanners/decoders read the same physical barcode with or without a
+  // leading zero (this is the standard EAN-13 / UPC-A equivalence). Normalize
+  // purely numeric codes so the same sticker always matches itself.
+  if(/^\d+$/.test(code)){
+    code = code.replace(/^0+(?=\d)/, '');
+  }
+  return code;
+}
+
+function processScan(rawCode){
   if(!currentShop) return;
-  const item = itemsCache.find(i => i.barcode === code);
+  const code = normalizeBarcode(rawCode);
+  const item = itemsCache.find(i => normalizeBarcode(i.barcode) === code);
 
   if(scanMode === 'sell'){
     if(!item){
@@ -974,18 +1016,20 @@ function processScan(code){
       addScanLogEntry(item.name, 1, newQty);
       if(navigator.vibrate) navigator.vibrate(35);
     } else {
-      // Unknown barcode — open the add-item modal pre-filled, ready to register it.
+      // Unknown barcode — open the add-item modal pre-filled, ready to register it,
+      // with an option to instead link it to an item that already exists.
       if(cameraActive) closeCameraScanner();
       pendingScanBarcode = code;
       $('barcode-field').style.display = '';
       $('input-item-barcode').value = code;
       $('modal-title').textContent = 'New item found';
-      $('modal-hint').textContent = `Barcode ${code} isn't registered yet in ${currentShop.name}. Fill in the details to save it.`;
+      $('modal-hint').textContent = `Barcode ${code} isn't registered yet in ${currentShop.name}. Fill in the details to save it, or link it to an item you already have.`;
       $('input-item-name').value = '';
       $('input-item-qty').value = '1';
       selectedUnit = 'rolls';
       document.querySelectorAll('.unit-choice').forEach(u => u.classList.toggle('active', u.dataset.unit === 'rolls'));
       $('modal-backdrop').classList.add('active');
+      $('btn-link-existing').style.display = itemsCache.length ? '' : 'none';
       setTimeout(() => $('input-item-name').focus(), 250);
     }
   }
@@ -1081,6 +1125,57 @@ function closeCameraScanner(){
 
 // If the scan screen is left while the camera is open, make sure it's shut down.
 $('btn-scan-back').addEventListener('click', closeCameraScanner);
+
+/* ---------------- Link barcode to an existing item ---------------- */
+$('btn-link-existing').addEventListener('click', () => {
+  $('modal-backdrop').classList.remove('active');
+  $('link-search-input').value = '';
+  renderLinkItemList('');
+  $('link-modal-backdrop').classList.add('active');
+  setTimeout(() => $('link-search-input').focus(), 250);
+});
+
+$('btn-link-cancel').addEventListener('click', () => {
+  $('link-modal-backdrop').classList.remove('active');
+  $('modal-backdrop').classList.add('active');
+});
+
+$('link-search-input').addEventListener('input', (e) => renderLinkItemList(e.target.value));
+
+function renderLinkItemList(query){
+  const q = query.trim().toLowerCase();
+  const list = q ? itemsCache.filter(i => (i.name||'').toLowerCase().includes(q)) : itemsCache;
+  const box = $('link-item-list');
+  if(!list.length){
+    box.innerHTML = '<div style="padding:14px 4px; color:var(--ink-soft); font-size:13px;">No items match.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  list.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'link-item-row';
+    row.innerHTML = `<span class="n">${escapeHtml(item.name)}</span><span class="q">${item.qty} ${escapeHtml(item.unit)}</span>`;
+    row.addEventListener('click', () => linkBarcodeToItem(item));
+    box.appendChild(row);
+  });
+}
+
+function linkBarcodeToItem(item){
+  const code = pendingScanBarcode;
+  if(!code || !currentShop) return;
+  db.collection('shops').doc(currentShop.id).collection('items').doc(item.id).update({
+    barcode: code,
+    updatedBy: (currentUser.displayName || currentUser.email || 'staff').split(' ')[0],
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    logActivity({ shopId: currentShop.id, shopName: currentShop.name, itemName: item.name, unit: item.unit, action: 'linked-barcode', qtyAfter: item.qty });
+    $('link-modal-backdrop').classList.remove('active');
+    pendingScanBarcode = null;
+    showScanResult('success', item.name, `Barcode linked · now scan it to update stock`);
+    addScanLogEntry(item.name, 0, item.qty, true);
+    setTimeout(() => $('scan-input').focus(), 150);
+  }).catch(err => toast('Could not link barcode: ' + err.message));
+}
 
 /* ---------------- Service worker ---------------- */
 if('serviceWorker' in navigator){
