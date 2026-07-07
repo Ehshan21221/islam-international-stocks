@@ -804,6 +804,15 @@ function initFirebase(){
         showScreen('screen-login');
       }
     });
+
+    // Handle the return trip from Google sign-in (redirect-based, not popup —
+    // this is far more reliable on Safari/iOS and inside installed home-screen
+    // apps, which often block or break the popup-based flow).
+    auth.getRedirectResult().catch(err => {
+      console.error('redirect sign-in error', err);
+      $('login-error').style.display = 'block';
+      $('login-error').textContent = 'Sign-in didn\'t complete (' + err.message + '). Please try tapping "Sign in with Google" again.';
+    });
   }catch(err){
     console.error(err);
     $('login-error').style.display='block';
@@ -814,7 +823,7 @@ function initFirebase(){
 $('btn-google-signin').addEventListener('click', () => {
   if(!firebaseReady){ toast('App not configured yet'); return; }
   const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithPopup(provider).catch(err => {
+  auth.signInWithRedirect(provider).catch(err => {
     $('login-error').style.display='block';
     $('login-error').textContent = err.message;
   });
