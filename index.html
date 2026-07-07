@@ -274,6 +274,21 @@
   }
   .qty-unit{font-size:10px; text-transform:uppercase; color:var(--ink-soft); letter-spacing:.4px; display:block; margin-top:1px;}
   .del-btn{background:none; border:none; color:#C79B9B; font-size:16px; cursor:pointer; padding:4px;}
+  .edit-btn{background:none; border:none; color:var(--ink-soft); font-size:15px; cursor:pointer; padding:4px;}
+
+  .group-card .group-header{cursor:pointer;}
+  .chevron{font-size:16px; color:var(--ink-soft); flex-shrink:0;}
+  .variant-list{margin-top:10px;}
+  .variant-row{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:12px 0; border-top:1px dashed rgba(15,36,28,.12);
+  }
+  .vr-left{flex:1; min-width:0;}
+  .vr-name{font-weight:700; font-size:13.5px;}
+  .vr-mid{display:flex; align-items:center; gap:10px; flex-shrink:0;}
+  .vr-right{display:flex; align-items:center; gap:2px; flex-shrink:0;}
+  .step-btn.small{width:30px; height:30px; font-size:15px;}
+  .qty-num.small{font-size:16px; min-width:22px; text-align:center; display:inline-block;}
 
   .fab{
     position:fixed; right:20px; bottom:calc(20px + env(safe-area-inset-bottom));
@@ -629,7 +644,12 @@
     </div>
     <div class="field">
       <label>Item name</label>
-      <input type="text" id="input-item-name" placeholder="e.g. Cotton Print – Red">
+      <input type="text" id="input-item-name" placeholder="e.g. Nida Kuchi">
+    </div>
+    <div class="field">
+      <label>Color / variant (optional)</label>
+      <input type="text" id="input-item-variant" placeholder="e.g. Black, White, Maroon">
+      <p class="hint" style="margin:6px 0 0;">Same item name + different colors group together automatically.</p>
     </div>
     <div class="field">
       <label>Starting quantity</label>
@@ -667,6 +687,26 @@
     <div id="link-item-list" style="max-height:280px; overflow-y:auto; margin-bottom:14px;"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="btn-link-cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== EDIT ITEM MODAL ===================== -->
+<div class="modal-backdrop" id="edit-modal-backdrop">
+  <div class="modal-sheet">
+    <h2>Edit item</h2>
+    <p class="hint">Rename it, or set a color/variant so it groups with matching items.</p>
+    <div class="field">
+      <label>Item name</label>
+      <input type="text" id="edit-item-name" placeholder="e.g. Nida Kuchi">
+    </div>
+    <div class="field">
+      <label>Color / variant (optional)</label>
+      <input type="text" id="edit-item-variant" placeholder="e.g. Black, White, Maroon">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btn-edit-cancel">Cancel</button>
+      <button class="btn btn-primary" id="btn-edit-save">Save changes</button>
     </div>
   </div>
 </div>
@@ -910,10 +950,14 @@ $('btn-back').addEventListener('click', () => {
 
 $('search-input').addEventListener('input', renderItems);
 
+let expandedGroups = new Set();
+
 function renderItems(){
   const list = $('item-list');
   const q = $('search-input').value.trim().toLowerCase();
-  const filtered = q ? itemsCache.filter(i => (i.name||'').toLowerCase().includes(q)) : itemsCache;
+  const filtered = q ? itemsCache.filter(i =>
+    (i.name || '').toLowerCase().includes(q) || (i.variant || '').toLowerCase().includes(q)
+  ) : itemsCache;
 
   if(!filtered.length){
     list.innerHTML = `<div class="empty-note" style="text-align:center; padding:40px 20px;">
@@ -922,8 +966,26 @@ function renderItems(){
     return;
   }
 
+  // Items that share the same name (case-insensitive) collapse into one
+  // card — different colors/variants of the same item, not separate clutter.
+  const groups = {};
+  const order = [];
+  filtered.forEach(item => {
+    const key = (item.name || '').trim().toLowerCase();
+    if(!groups[key]){ groups[key] = { name: (item.name || '').trim(), items: [] }; order.push(key); }
+    groups[key].items.push(item);
+  });
+  order.sort((a, b) => groups[a].name.localeCompare(groups[b].name));
+
   list.innerHTML = '';
-  filtered.forEach(item => list.appendChild(itemCard(item)));
+  order.forEach(key => {
+    const group = groups[key];
+    if(group.items.length === 1){
+      list.appendChild(itemCard(group.items[0]));
+    } else {
+      list.appendChild(groupCard(key, group));
+    }
+  });
 }
 
 function formatArrivalDate(dateStr){
@@ -944,6 +1006,7 @@ function itemCard(item){
       <div>
         <h3>${escapeHtml(item.name)}</h3>
         <div class="updated">Updated by ${escapeHtml(item.updatedBy || 'staff')} · ${timeAgo(item.updatedAt)}</div>
+        ${item.variant ? `<div class="barcode-tag">🎨 ${escapeHtml(item.variant)}</div>` : ''}
         ${item.barcode ? `<div class="barcode-tag">▤ ${escapeHtml(item.barcode)}</div>` : ''}
         ${item.arrivalDate ? `<div class="barcode-tag">📦 Arrived ${formatArrivalDate(item.arrivalDate)}</div>` : ''}
       </div>
@@ -959,14 +1022,109 @@ function itemCard(item){
         </div>
         <button class="step-btn plus" data-id="${item.id}" data-dir="1" style="background:${currentShop.color}">+</button>
       </div>
-      <button class="del-btn" data-del="${item.id}">🗑</button>
+      <div>
+        <button class="edit-btn" data-edit="${item.id}">✎</button>
+        <button class="del-btn" data-del="${item.id}">🗑</button>
+      </div>
     </div>`;
   return card;
 }
 
+function groupCard(key, group){
+  const card = document.createElement('div');
+  card.className = 'item-card group-card';
+  const expanded = expandedGroups.has(key);
+  card.innerHTML = `
+    <div class="top group-header" data-group="${key}">
+      <div>
+        <h3>${escapeHtml(group.name)}</h3>
+        <div class="updated">${group.items.length} colors/variants — tap to ${expanded ? 'collapse' : 'see all'}</div>
+      </div>
+      <span class="chevron">${expanded ? '▴' : '▾'}</span>
+    </div>
+    <div class="variant-list" style="display:${expanded ? '' : 'none'};"></div>`;
+  const variantList = card.querySelector('.variant-list');
+  group.items
+    .slice()
+    .sort((a, b) => (a.variant || '').localeCompare(b.variant || ''))
+    .forEach(item => variantList.appendChild(variantRow(item)));
+  return card;
+}
+
+function variantRow(item){
+  const row = document.createElement('div');
+  row.className = 'variant-row';
+  const low = item.qty <= 2;
+  row.innerHTML = `
+    <div class="vr-left">
+      <div class="vr-name">${item.variant ? escapeHtml(item.variant) : '(no color set)'}</div>
+      ${item.barcode ? `<div class="barcode-tag">▤ ${escapeHtml(item.barcode)}</div>` : ''}
+      ${item.arrivalDate ? `<div class="barcode-tag">📦 ${formatArrivalDate(item.arrivalDate)}</div>` : ''}
+    </div>
+    <div class="vr-mid">
+      <button class="step-btn minus small" data-id="${item.id}" data-dir="-1">–</button>
+      <span class="qty-num small" id="qty-${item.id}" style="color:${low ? 'var(--danger)' : 'var(--ink)'}">${item.qty}</span>
+      <button class="step-btn plus small" data-id="${item.id}" data-dir="1" style="background:${currentShop.color}">+</button>
+    </div>
+    <div class="vr-right">
+      <button class="edit-btn" data-edit="${item.id}">✎</button>
+      <button class="del-btn" data-del="${item.id}">🗑</button>
+    </div>`;
+  return row;
+}
+
+/* ---------------- Edit item (rename / set variant) ---------------- */
+let editingItemId = null;
+
+function openEditItemModal(itemId){
+  const item = itemsCache.find(i => i.id === itemId);
+  if(!item) return;
+  editingItemId = itemId;
+  $('edit-item-name').value = item.name || '';
+  $('edit-item-variant').value = item.variant || '';
+  $('edit-modal-backdrop').classList.add('active');
+  setTimeout(() => $('edit-item-name').focus(), 250);
+}
+
+$('btn-edit-cancel').addEventListener('click', () => {
+  $('edit-modal-backdrop').classList.remove('active');
+  editingItemId = null;
+});
+$('edit-modal-backdrop').addEventListener('click', (e) => {
+  if(e.target.id === 'edit-modal-backdrop'){
+    $('edit-modal-backdrop').classList.remove('active');
+    editingItemId = null;
+  }
+});
+
+$('btn-edit-save').addEventListener('click', () => {
+  const name = $('edit-item-name').value.trim();
+  const variant = $('edit-item-variant').value.trim();
+  if(!name){ toast('Enter an item name'); return; }
+  if(!editingItemId || !currentShop) return;
+  db.collection('shops').doc(currentShop.id).collection('items').doc(editingItemId).update({
+    name, variant: variant || null,
+    updatedBy: (currentUser.displayName || currentUser.email || 'staff').split(' ')[0],
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }).then(() => {
+    $('edit-modal-backdrop').classList.remove('active');
+    editingItemId = null;
+    toast('Item updated');
+  }).catch(err => toast('Could not save: ' + err.message));
+});
+
 $('item-list').addEventListener('click', (e) => {
+  const groupHeader = e.target.closest('[data-group]');
+  if(groupHeader){
+    const key = groupHeader.dataset.group;
+    if(expandedGroups.has(key)) expandedGroups.delete(key); else expandedGroups.add(key);
+    renderItems();
+    return;
+  }
   const stepBtn = e.target.closest('[data-dir]');
   if(stepBtn){ changeQty(stepBtn.dataset.id, parseInt(stepBtn.dataset.dir,10)); return; }
+  const editBtn = e.target.closest('[data-edit]');
+  if(editBtn){ openEditItemModal(editBtn.dataset.edit); return; }
   const delBtn = e.target.closest('[data-del]');
   if(delBtn){ deleteItem(delBtn.dataset.del); }
 });
@@ -1023,6 +1181,7 @@ function openAddItemModal(){
   $('modal-title').textContent = 'Add new item';
   $('modal-hint').textContent = 'This appears instantly for every staff member.';
   $('input-item-name').value = '';
+  $('input-item-variant').value = '';
   $('input-item-qty').value = '';
   $('input-item-arrival').value = '';
   selectedUnit = 'rolls';
@@ -1053,6 +1212,7 @@ $('unit-choices').addEventListener('click', (e) => {
 
 $('btn-save-item').addEventListener('click', () => {
   const name = $('input-item-name').value.trim();
+  const variant = $('input-item-variant').value.trim();
   const qty = parseInt($('input-item-qty').value, 10) || 0;
   const arrivalDate = $('input-item-arrival').value || null;
   if(!name){ toast('Enter an item name'); return; }
@@ -1061,6 +1221,7 @@ $('btn-save-item').addEventListener('click', () => {
 
   db.collection('shops').doc(currentShop.id).collection('items').add({
     name, qty, unit: selectedUnit,
+    variant: variant || null,
     barcode: barcodeForItem || null,
     arrivalDate: arrivalDate,
     updatedBy: (currentUser.displayName || currentUser.email || 'staff').split(' ')[0],
@@ -1221,6 +1382,7 @@ function processScan(rawCode){
       $('modal-title').textContent = 'New item found';
       $('modal-hint').textContent = `Barcode ${code} isn't registered yet in ${currentShop.name}. Fill in the details to save it, or link it to an item you already have.`;
       $('input-item-name').value = '';
+      $('input-item-variant').value = '';
       $('input-item-qty').value = '1';
       $('input-item-arrival').value = '';
       selectedUnit = 'rolls';
