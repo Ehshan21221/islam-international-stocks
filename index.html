@@ -324,6 +324,8 @@
   }
   .camera-frame{position:relative; flex:1; overflow:hidden; background:#000;}
   .camera-frame video{width:100%; height:100%; object-fit:cover;}
+  #camera-video-container{width:100%; height:100%;}
+  #camera-video-container video{width:100%; height:100%; object-fit:cover;}
   .camera-reticle{
     position:absolute; left:10%; right:10%; top:38%; height:24%;
     border:3px solid var(--gold); border-radius:14px;
@@ -478,7 +480,7 @@
       <span id="camera-mode-label" style="font-weight:700;">Add Stock</span>
     </div>
     <div class="camera-frame">
-      <video id="camera-video" autoplay playsinline muted></video>
+      <div id="camera-video-container"></div>
       <div class="camera-reticle"></div>
     </div>
     <div class="camera-status" id="camera-status">Starting camera…</div>
@@ -521,9 +523,8 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- ZXing: open-source barcode scanning engine (same engine used by many production scanning apps) -->
-<script src="https://unpkg.com/@zxing/[email protected]"></script>
-<script src="https://unpkg.com/@zxing/[email protected]"></script>
+<!-- html5-qrcode: widely-used open-source library for scanning barcodes/QR codes via the browser camera -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -1023,8 +1024,8 @@ function renderScanLog(){
   });
 }
 
-/* ---------------- Camera barcode scanning (ZXing) ---------------- */
-let zxingReader = null;
+/* ---------------- Camera barcode scanning (html5-qrcode) ---------------- */
+let html5QrCode = null;
 let cameraActive = false;
 let lastCameraCode = '';
 let lastCameraCodeAt = 0;
@@ -1033,8 +1034,8 @@ $('btn-camera-scan').addEventListener('click', openCameraScanner);
 $('btn-camera-close').addEventListener('click', closeCameraScanner);
 
 async function openCameraScanner(){
-  if(!window.ZXingBrowser){
-    toast('Camera scanner failed to load — check your internet connection and try again.');
+  if(typeof Html5Qrcode === 'undefined'){
+    toast('Camera scanner library did not load. Check your internet connection and try again.');
     return;
   }
   $('camera-mode-label').textContent = scanMode === 'add' ? 'Add Stock' : 'Sell / Remove';
@@ -1043,41 +1044,38 @@ async function openCameraScanner(){
   cameraActive = true;
 
   try{
-    zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
-    const controls = await zxingReader.decodeFromConstraints(
-      { video: { facingMode: 'environment' } },
-      'camera-video',
-      (result, err) => {
+    html5QrCode = new Html5Qrcode('camera-video-container', { verbose: false });
+    await html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 270, height: 140 } },
+      (decodedText) => {
         if(!cameraActive) return;
-        if(result){
-          const code = result.getText();
-          const now = Date.now();
-          // avoid re-triggering the same barcode repeatedly while it's still in frame
-          if(code === lastCameraCode && (now - lastCameraCodeAt) < 2200) return;
-          lastCameraCode = code;
-          lastCameraCodeAt = now;
-          $('camera-status').textContent = 'Scanned: ' + code;
-          if(navigator.vibrate) navigator.vibrate(35);
-          processScan(code);
-        }
-      }
+        const now = Date.now();
+        // avoid re-triggering the same barcode repeatedly while it's still in frame
+        if(decodedText === lastCameraCode && (now - lastCameraCodeAt) < 2200) return;
+        lastCameraCode = decodedText;
+        lastCameraCodeAt = now;
+        $('camera-status').textContent = 'Scanned: ' + decodedText;
+        if(navigator.vibrate) navigator.vibrate(35);
+        processScan(decodedText);
+      },
+      () => { /* per-frame "no barcode found" — expected constantly, ignore */ }
     );
-    zxingReader._controls = controls;
     $('camera-status').textContent = 'Point the camera at a barcode';
   } catch(err){
     console.error(err);
-    $('camera-status').textContent = 'Could not start the camera: ' + (err.message || err);
-    toast('Camera access denied or unavailable. You can allow camera permission in your browser settings and try again.');
+    $('camera-status').textContent = 'Could not start the camera.';
+    toast('Camera access denied or unavailable. Allow camera permission for this site in your browser settings and try again.');
   }
 }
 
 function closeCameraScanner(){
   cameraActive = false;
   $('camera-overlay').classList.remove('active');
-  try{
-    if(zxingReader && zxingReader._controls) zxingReader._controls.stop();
-  }catch(e){}
-  zxingReader = null;
+  if(html5QrCode){
+    html5QrCode.stop().then(() => html5QrCode.clear()).catch(() => {});
+    html5QrCode = null;
+  }
   setTimeout(() => $('scan-input').focus(), 100);
 }
 
