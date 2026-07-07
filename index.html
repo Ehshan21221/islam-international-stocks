@@ -644,6 +644,10 @@
         <div class="unit-choice" data-unit="yard">Yard</div>
       </div>
     </div>
+    <div class="field">
+      <label>Arrival date (optional)</label>
+      <input type="date" id="input-item-arrival">
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" id="btn-cancel-add">Cancel</button>
       <button class="btn btn-primary" id="btn-save-item">Save item</button>
@@ -922,6 +926,15 @@ function renderItems(){
   filtered.forEach(item => list.appendChild(itemCard(item)));
 }
 
+function formatArrivalDate(dateStr){
+  if(!dateStr) return '';
+  const parts = dateStr.split('-').map(Number);
+  const y = parts[0], m = parts[1], d = parts[2];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  if(!y || !m || !d) return dateStr;
+  return `${d} ${months[m-1]} ${y}`;
+}
+
 function itemCard(item){
   const card = document.createElement('div');
   card.className = 'item-card';
@@ -932,6 +945,7 @@ function itemCard(item){
         <h3>${escapeHtml(item.name)}</h3>
         <div class="updated">Updated by ${escapeHtml(item.updatedBy || 'staff')} · ${timeAgo(item.updatedAt)}</div>
         ${item.barcode ? `<div class="barcode-tag">▤ ${escapeHtml(item.barcode)}</div>` : ''}
+        ${item.arrivalDate ? `<div class="barcode-tag">📦 Arrived ${formatArrivalDate(item.arrivalDate)}</div>` : ''}
       </div>
       <span class="unit-badge" style="background:${currentShop.color}22; color:${currentShop.dark}">${item.unit}</span>
     </div>
@@ -1010,6 +1024,7 @@ function openAddItemModal(){
   $('modal-hint').textContent = 'This appears instantly for every staff member.';
   $('input-item-name').value = '';
   $('input-item-qty').value = '';
+  $('input-item-arrival').value = '';
   selectedUnit = 'rolls';
   document.querySelectorAll('.unit-choice').forEach(u => u.classList.toggle('active', u.dataset.unit === 'rolls'));
   $('modal-backdrop').classList.add('active');
@@ -1039,6 +1054,7 @@ $('unit-choices').addEventListener('click', (e) => {
 $('btn-save-item').addEventListener('click', () => {
   const name = $('input-item-name').value.trim();
   const qty = parseInt($('input-item-qty').value, 10) || 0;
+  const arrivalDate = $('input-item-arrival').value || null;
   if(!name){ toast('Enter an item name'); return; }
   if(!currentShop) return;
   const barcodeForItem = pendingScanBarcode;
@@ -1046,6 +1062,7 @@ $('btn-save-item').addEventListener('click', () => {
   db.collection('shops').doc(currentShop.id).collection('items').add({
     name, qty, unit: selectedUnit,
     barcode: barcodeForItem || null,
+    arrivalDate: arrivalDate,
     updatedBy: (currentUser.displayName || currentUser.email || 'staff').split(' ')[0],
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1205,6 +1222,7 @@ function processScan(rawCode){
       $('modal-hint').textContent = `Barcode ${code} isn't registered yet in ${currentShop.name}. Fill in the details to save it, or link it to an item you already have.`;
       $('input-item-name').value = '';
       $('input-item-qty').value = '1';
+      $('input-item-arrival').value = '';
       selectedUnit = 'rolls';
       document.querySelectorAll('.unit-choice').forEach(u => u.classList.toggle('active', u.dataset.unit === 'rolls'));
       $('modal-backdrop').classList.add('active');
