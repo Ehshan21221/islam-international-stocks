@@ -2,7 +2,7 @@
 // Caches the app shell so it opens instantly and works offline.
 // Stock DATA itself is synced live through Firestore, not cached here.
 
-const CACHE_NAME = 'ii-stocks-shell-v4';
+const CACHE_NAME = 'ii-stocks-shell-v5';
 const SHELL_FILES = [
   './index.html',
   './config.js',
@@ -34,6 +34,29 @@ self.addEventListener('fetch', (event) => {
   if (url.origin.includes('firestore') || url.origin.includes('googleapis') || url.origin.includes('firebaseapp')) {
     return;
   }
+
+  const isAppShell = event.request.mode === 'navigate' ||
+    url.pathname.endsWith('index.html') ||
+    url.pathname.endsWith('config.js') ||
+    url.pathname.endsWith('manifest.json');
+
+  if (isAppShell) {
+    // Network-first: always try to get the latest version when online, so
+    // updates uploaded to GitHub show up the very next time the app is opened.
+    // Falls back to the last cached copy only when there's no connection.
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          return response;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Icons and other static assets rarely change — cache-first is fine for these.
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
