@@ -304,10 +304,39 @@
   .scan-log-item .delta{font-family:'IBM Plex Mono',monospace; font-weight:700;}
   .scan-log-item .delta.plus{color:#8FE0B4;}
   .scan-log-item .delta.minus{color:#F0A0A0;}
+  .btn-camera-scan{
+    display:block; margin:0 20px 20px; padding:13px; border-radius:12px;
+    background:transparent; border:1.5px solid rgba(247,244,236,.25); color:var(--cream);
+    font-weight:700; font-size:13.5px; cursor:pointer; text-align:center;
+  }
+  .btn-camera-scan:active{background:rgba(247,244,236,.08);}
+
+  /* ---------- CAMERA SCANNER OVERLAY ---------- */
+  .camera-overlay{
+    position:fixed; inset:0; background:#000; z-index:300;
+    display:none; flex-direction:column;
+  }
+  .camera-overlay.active{display:flex;}
+  .camera-top{
+    padding: max(16px, env(safe-area-inset-top)) 16px 14px;
+    display:flex; align-items:center; gap:12px; color:#fff;
+    background:rgba(0,0,0,.4);
+  }
+  .camera-frame{position:relative; flex:1; overflow:hidden; background:#000;}
+  .camera-frame video{width:100%; height:100%; object-fit:cover;}
+  .camera-reticle{
+    position:absolute; left:10%; right:10%; top:38%; height:24%;
+    border:3px solid var(--gold); border-radius:14px;
+    box-shadow:0 0 0 2000px rgba(0,0,0,.35);
+  }
+  .camera-status{
+    padding:16px; text-align:center; color:#fff; font-size:13.5px;
+    background:rgba(0,0,0,.4);
+  }
 
   /* ---------- MODAL (add item) ---------- */
   .modal-backdrop{
-    position:fixed; inset:0; background:rgba(15,36,28,.55); z-index:100;
+    position:fixed; inset:0; background:rgba(15,36,28,.55); z-index:400;
     display:none; align-items:flex-end; justify-content:center;
     backdrop-filter: blur(2px);
   }
@@ -431,6 +460,7 @@
       <div class="label" id="scan-target-label">Point the scanner and scan a barcode — Add Stock mode is on</div>
       <div class="scan-tap-hint">Tap here if the scanner stops responding</div>
     </div>
+    <button class="btn-camera-scan" id="btn-camera-scan">📱 Use phone camera instead</button>
     <input type="text" id="scan-input" class="scan-input" autocomplete="off" autocapitalize="off" autocorrect="off">
     <div class="scan-result" id="scan-result">
       <span style="opacity:.6; font-size:13px;">Waiting for a scan…</span>
@@ -440,6 +470,19 @@
       <div id="scan-log-list"><div style="opacity:.5; font-size:13px;">Nothing scanned yet this session.</div></div>
     </div>
   </section>
+
+  <!-- ===================== CAMERA SCANNER OVERLAY ===================== -->
+  <div class="camera-overlay" id="camera-overlay">
+    <div class="camera-top">
+      <button class="back-btn" id="btn-camera-close">✕</button>
+      <span id="camera-mode-label" style="font-weight:700;">Add Stock</span>
+    </div>
+    <div class="camera-frame">
+      <video id="camera-video" autoplay playsinline muted></video>
+      <div class="camera-reticle"></div>
+    </div>
+    <div class="camera-status" id="camera-status">Starting camera…</div>
+  </div>
 
 </div>
 
@@ -477,6 +520,10 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- ZXing: open-source barcode scanning engine (same engine used by many production scanning apps) -->
+<script src="https://unpkg.com/@zxing/[email protected]"></script>
+<script src="https://unpkg.com/@zxing/[email protected]"></script>
 
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -864,6 +911,7 @@ function setScanMode(mode){
   $('scan-target-label').textContent = mode === 'add'
     ? 'Point the scanner and scan a barcode — Add Stock mode is on'
     : 'Point the scanner and scan a barcode — Sell / Remove mode is on';
+  if(cameraActive) $('camera-mode-label').textContent = mode === 'add' ? 'Add Stock' : 'Sell / Remove';
 }
 $('btn-mode-add').addEventListener('click', () => setScanMode('add'));
 $('btn-mode-sell').addEventListener('click', () => setScanMode('sell'));
@@ -926,6 +974,7 @@ function processScan(code){
       if(navigator.vibrate) navigator.vibrate(35);
     } else {
       // Unknown barcode — open the add-item modal pre-filled, ready to register it.
+      if(cameraActive) closeCameraScanner();
       pendingScanBarcode = code;
       $('barcode-field').style.display = '';
       $('input-item-barcode').value = code;
@@ -973,6 +1022,67 @@ function renderScanLog(){
     box.appendChild(row);
   });
 }
+
+/* ---------------- Camera barcode scanning (ZXing) ---------------- */
+let zxingReader = null;
+let cameraActive = false;
+let lastCameraCode = '';
+let lastCameraCodeAt = 0;
+
+$('btn-camera-scan').addEventListener('click', openCameraScanner);
+$('btn-camera-close').addEventListener('click', closeCameraScanner);
+
+async function openCameraScanner(){
+  if(!window.ZXingBrowser){
+    toast('Camera scanner failed to load — check your internet connection and try again.');
+    return;
+  }
+  $('camera-mode-label').textContent = scanMode === 'add' ? 'Add Stock' : 'Sell / Remove';
+  $('camera-status').textContent = 'Starting camera…';
+  $('camera-overlay').classList.add('active');
+  cameraActive = true;
+
+  try{
+    zxingReader = new ZXingBrowser.BrowserMultiFormatReader();
+    const controls = await zxingReader.decodeFromConstraints(
+      { video: { facingMode: 'environment' } },
+      'camera-video',
+      (result, err) => {
+        if(!cameraActive) return;
+        if(result){
+          const code = result.getText();
+          const now = Date.now();
+          // avoid re-triggering the same barcode repeatedly while it's still in frame
+          if(code === lastCameraCode && (now - lastCameraCodeAt) < 2200) return;
+          lastCameraCode = code;
+          lastCameraCodeAt = now;
+          $('camera-status').textContent = 'Scanned: ' + code;
+          if(navigator.vibrate) navigator.vibrate(35);
+          processScan(code);
+        }
+      }
+    );
+    zxingReader._controls = controls;
+    $('camera-status').textContent = 'Point the camera at a barcode';
+  } catch(err){
+    console.error(err);
+    $('camera-status').textContent = 'Could not start the camera: ' + (err.message || err);
+    toast('Camera access denied or unavailable. You can allow camera permission in your browser settings and try again.');
+  }
+}
+
+function closeCameraScanner(){
+  cameraActive = false;
+  $('camera-overlay').classList.remove('active');
+  try{
+    if(zxingReader && zxingReader._controls) zxingReader._controls.stop();
+  }catch(e){}
+  zxingReader = null;
+  setTimeout(() => $('scan-input').focus(), 100);
+}
+
+// If the scan screen is left while the camera is open, make sure it's shut down.
+$('btn-scan-back').addEventListener('click', closeCameraScanner);
 
 /* ---------------- Service worker ---------------- */
 if('serviceWorker' in navigator){
