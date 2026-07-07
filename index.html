@@ -241,6 +241,69 @@
     z-index:50;
   }
   .fab:active{transform:scale(.9) rotate(90deg);}
+  .fab-scan{
+    position:fixed; left:20px; bottom:calc(20px + env(safe-area-inset-bottom));
+    height:58px; padding:0 20px; border-radius:29px; border:none;
+    background:var(--forest-deep); color:var(--cream); font-size:14px; font-weight:700;
+    box-shadow:0 12px 24px -8px rgba(15,36,28,.5); cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+    transition: transform .15s ease;
+    z-index:50;
+  }
+  .fab-scan:active{transform:scale(.94);}
+  .barcode-tag{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--ink-soft);
+    opacity:.75; margin-top:2px; letter-spacing:.3px;
+  }
+
+  /* ---------- SCAN SCREEN ---------- */
+  #screen-scan{background:var(--forest-deep); color:var(--cream);}
+  .scan-header{
+    padding: max(16px, env(safe-area-inset-top)) 16px 16px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .scan-header h1{font-size:18px; margin:0; flex:1; font-weight:600;}
+  .scan-mode-toggle{
+    display:flex; gap:10px; padding:0 16px 16px;
+  }
+  .scan-mode-btn{
+    flex:1; padding:14px; border-radius:14px; border:1.5px solid rgba(247,244,236,.18);
+    background:rgba(247,244,236,.06); color:rgba(247,244,236,.7);
+    font-weight:700; font-size:14px; cursor:pointer; text-align:center;
+  }
+  .scan-mode-btn.active.add{background:var(--forest-soft); border-color:var(--forest-soft); color:#fff;}
+  .scan-mode-btn.active.sell{background:var(--danger); border-color:var(--danger); color:#fff;}
+  .scan-target{
+    margin:10px 20px 24px; padding:36px 20px; border-radius:22px;
+    border:2px dashed rgba(247,244,236,.3);
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    text-align:center;
+  }
+  .scan-target .icon{font-size:40px;}
+  .scan-target .label{font-size:14px; color:rgba(247,244,236,.75);}
+  .scan-input{
+    position:absolute; opacity:0; pointer-events:none; width:1px; height:1px;
+  }
+  .scan-tap-hint{font-size:12px; color:rgba(247,244,236,.5); margin-top:2px;}
+  .scan-result{
+    margin:0 20px; padding:18px; border-radius:16px; background:rgba(247,244,236,.08);
+    min-height:70px; display:flex; flex-direction:column; justify-content:center;
+    animation: fadein .2s ease both;
+  }
+  .scan-result.success{background:rgba(46,110,78,.35);}
+  .scan-result.error{background:rgba(162,59,59,.35);}
+  .scan-result .item-name{font-weight:700; font-size:16px;}
+  .scan-result .item-qty{font-family:'IBM Plex Mono',monospace; font-size:14px; opacity:.9; margin-top:4px;}
+  .scan-log{padding:20px; flex:1; overflow-y:auto;}
+  .scan-log h3{font-size:12px; text-transform:uppercase; letter-spacing:.5px; color:rgba(247,244,236,.5); margin:0 0 10px;}
+  .scan-log-item{
+    display:flex; justify-content:space-between; padding:9px 0;
+    border-bottom:1px solid rgba(247,244,236,.08); font-size:13px;
+  }
+  .scan-log-item .name{color:var(--cream);}
+  .scan-log-item .delta{font-family:'IBM Plex Mono',monospace; font-weight:700;}
+  .scan-log-item .delta.plus{color:#8FE0B4;}
+  .scan-log-item .delta.minus{color:#F0A0A0;}
 
   /* ---------- MODAL (add item) ---------- */
   .modal-backdrop{
@@ -349,7 +412,33 @@
     <div class="item-list" id="item-list">
       <div class="loader"><span class="spin"></span> Loading stock…</div>
     </div>
+    <button class="fab-scan" id="btn-open-scan">📷 Scan</button>
     <button class="fab" id="btn-add-item">+</button>
+  </section>
+
+  <!-- ===================== SCAN SCREEN ===================== -->
+  <section id="screen-scan" class="screen">
+    <div class="scan-header">
+      <button class="back-btn" id="btn-scan-back">←</button>
+      <h1 id="scan-shop-title">Scan</h1>
+    </div>
+    <div class="scan-mode-toggle">
+      <button class="scan-mode-btn add active" id="btn-mode-add" data-mode="add">📥 Add Stock</button>
+      <button class="scan-mode-btn sell" id="btn-mode-sell" data-mode="sell">📤 Sell / Remove</button>
+    </div>
+    <div class="scan-target" id="scan-target">
+      <div class="icon">📷</div>
+      <div class="label" id="scan-target-label">Point the scanner and scan a barcode — Add Stock mode is on</div>
+      <div class="scan-tap-hint">Tap here if the scanner stops responding</div>
+    </div>
+    <input type="text" id="scan-input" class="scan-input" autocomplete="off" autocapitalize="off" autocorrect="off">
+    <div class="scan-result" id="scan-result">
+      <span style="opacity:.6; font-size:13px;">Waiting for a scan…</span>
+    </div>
+    <div class="scan-log">
+      <h3>Recent scans</h3>
+      <div id="scan-log-list"><div style="opacity:.5; font-size:13px;">Nothing scanned yet this session.</div></div>
+    </div>
   </section>
 
 </div>
@@ -357,8 +446,12 @@
 <!-- ===================== ADD ITEM MODAL ===================== -->
 <div class="modal-backdrop" id="modal-backdrop">
   <div class="modal-sheet">
-    <h2>Add new item</h2>
-    <p class="hint">This appears instantly for every staff member.</p>
+    <h2 id="modal-title">Add new item</h2>
+    <p class="hint" id="modal-hint">This appears instantly for every staff member.</p>
+    <div class="field" id="barcode-field" style="display:none;">
+      <label>Scanned barcode</label>
+      <input type="text" id="input-item-barcode" readonly style="font-family:'IBM Plex Mono',monospace; background:var(--cream-dim);">
+    </div>
     <div class="field">
       <label>Item name</label>
       <input type="text" id="input-item-name" placeholder="e.g. Cotton Print – Red">
@@ -409,6 +502,9 @@ let unsubItems = null, unsubGlobalActivity = null;
 let currentShop = null;
 let itemsCache = [];
 let selectedUnit = 'rolls';
+let scanMode = 'add';
+let pendingScanBarcode = null;
+let scanSessionLog = [];
 
 function $(id){ return document.getElementById(id); }
 function showScreen(id){
@@ -614,6 +710,7 @@ function itemCard(item){
       <div>
         <h3>${escapeHtml(item.name)}</h3>
         <div class="updated">Updated by ${escapeHtml(item.updatedBy || 'staff')} · ${timeAgo(item.updatedAt)}</div>
+        ${item.barcode ? `<div class="barcode-tag">▤ ${escapeHtml(item.barcode)}</div>` : ''}
       </div>
       <span class="unit-badge" style="background:${currentShop.color}22; color:${currentShop.dark}">${item.unit}</span>
     </div>
@@ -683,16 +780,31 @@ function logActivity(data){
 }
 
 /* ---------------- Add item modal ---------------- */
-$('btn-add-item').addEventListener('click', () => {
+function openAddItemModal(){
+  pendingScanBarcode = null;
+  $('barcode-field').style.display = 'none';
+  $('input-item-barcode').value = '';
+  $('modal-title').textContent = 'Add new item';
+  $('modal-hint').textContent = 'This appears instantly for every staff member.';
   $('input-item-name').value = '';
   $('input-item-qty').value = '';
   selectedUnit = 'rolls';
   document.querySelectorAll('.unit-choice').forEach(u => u.classList.toggle('active', u.dataset.unit === 'rolls'));
   $('modal-backdrop').classList.add('active');
   setTimeout(() => $('input-item-name').focus(), 250);
+}
+
+$('btn-add-item').addEventListener('click', openAddItemModal);
+$('btn-cancel-add').addEventListener('click', () => {
+  $('modal-backdrop').classList.remove('active');
+  if(pendingScanBarcode){ pendingScanBarcode = null; setTimeout(() => $('scan-input').focus(), 150); }
 });
-$('btn-cancel-add').addEventListener('click', () => $('modal-backdrop').classList.remove('active'));
-$('modal-backdrop').addEventListener('click', (e) => { if(e.target.id === 'modal-backdrop') $('modal-backdrop').classList.remove('active'); });
+$('modal-backdrop').addEventListener('click', (e) => {
+  if(e.target.id === 'modal-backdrop'){
+    $('modal-backdrop').classList.remove('active');
+    if(pendingScanBarcode){ pendingScanBarcode = null; setTimeout(() => $('scan-input').focus(), 150); }
+  }
+});
 
 $('unit-choices').addEventListener('click', (e) => {
   const el = e.target.closest('.unit-choice');
@@ -707,18 +819,160 @@ $('btn-save-item').addEventListener('click', () => {
   const qty = parseInt($('input-item-qty').value, 10) || 0;
   if(!name){ toast('Enter an item name'); return; }
   if(!currentShop) return;
+  const barcodeForItem = pendingScanBarcode;
 
   db.collection('shops').doc(currentShop.id).collection('items').add({
     name, qty, unit: selectedUnit,
+    barcode: barcodeForItem || null,
     updatedBy: (currentUser.displayName || currentUser.email || 'staff').split(' ')[0],
     updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     createdAt: firebase.firestore.FieldValue.serverTimestamp()
   }).then(() => {
     logActivity({ shopId: currentShop.id, shopName: currentShop.name, itemName: name, unit: selectedUnit, action: 'created', qtyAfter: qty });
     $('modal-backdrop').classList.remove('active');
-    toast('Item added');
+    if(barcodeForItem){
+      pendingScanBarcode = null;
+      addScanLogEntry(name, qty, qty, true);
+      showScanResult('success', name, `Registered · now ${qty} ${selectedUnit}`);
+      setTimeout(() => $('scan-input').focus(), 150);
+    } else {
+      toast('Item added');
+    }
   }).catch(err => toast('Could not save: ' + err.message));
 });
+
+/* ---------------- Barcode scanning ---------------- */
+$('btn-open-scan').addEventListener('click', () => {
+  if(!currentShop) return;
+  $('scan-shop-title').textContent = currentShop.name + ' — Scan';
+  scanSessionLog = [];
+  renderScanLog();
+  showScanResult('idle');
+  setScanMode('add');
+  showScreen('screen-scan');
+  setTimeout(() => $('scan-input').focus(), 200);
+});
+
+$('btn-scan-back').addEventListener('click', () => {
+  showScreen('screen-shop');
+});
+
+function setScanMode(mode){
+  scanMode = mode;
+  $('btn-mode-add').classList.toggle('active', mode === 'add');
+  $('btn-mode-sell').classList.toggle('active', mode === 'sell');
+  $('scan-target-label').textContent = mode === 'add'
+    ? 'Point the scanner and scan a barcode — Add Stock mode is on'
+    : 'Point the scanner and scan a barcode — Sell / Remove mode is on';
+}
+$('btn-mode-add').addEventListener('click', () => setScanMode('add'));
+$('btn-mode-sell').addEventListener('click', () => setScanMode('sell'));
+
+// Keep the hidden scan input focused whenever the scan screen is showing,
+// so a handheld scanner (which types like a keyboard) always has somewhere to type into.
+document.addEventListener('click', () => {
+  if($('screen-scan').classList.contains('active') && !$('modal-backdrop').classList.contains('active')){
+    setTimeout(() => $('scan-input').focus(), 50);
+  }
+});
+$('scan-input').addEventListener('blur', () => {
+  setTimeout(() => {
+    if($('screen-scan').classList.contains('active') && !$('modal-backdrop').classList.contains('active')){
+      $('scan-input').focus();
+    }
+  }, 60);
+});
+
+$('scan-input').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    const code = $('scan-input').value.trim();
+    $('scan-input').value = '';
+    if(code) processScan(code);
+  }
+});
+
+function processScan(code){
+  if(!currentShop) return;
+  const item = itemsCache.find(i => i.barcode === code);
+
+  if(scanMode === 'sell'){
+    if(!item){
+      showScanResult('error', code, 'Not found in this shop — switch to Add Stock to register it first.');
+      if(navigator.vibrate) navigator.vibrate([40,60,40]);
+      return;
+    }
+    const newQty = Math.max(0, (item.qty||0) - 1);
+    db.collection('shops').doc(currentShop.id).collection('items').doc(item.id).update({
+      qty: newQty,
+      updatedBy: (currentUser.displayName || currentUser.email || 'staff').split(' ')[0],
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(err => toast('Could not save: ' + err.message));
+    logActivity({ shopId: currentShop.id, shopName: currentShop.name, itemName: item.name, unit: item.unit, action: 'decreased', delta: 1, qtyAfter: newQty });
+    showScanResult('success', item.name, `Sold 1 · now ${newQty} ${item.unit}`);
+    addScanLogEntry(item.name, -1, newQty);
+    if(navigator.vibrate) navigator.vibrate(35);
+  } else {
+    if(item){
+      const newQty = (item.qty||0) + 1;
+      db.collection('shops').doc(currentShop.id).collection('items').doc(item.id).update({
+        qty: newQty,
+        updatedBy: (currentUser.displayName || currentUser.email || 'staff').split(' ')[0],
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }).catch(err => toast('Could not save: ' + err.message));
+      logActivity({ shopId: currentShop.id, shopName: currentShop.name, itemName: item.name, unit: item.unit, action: 'increased', delta: 1, qtyAfter: newQty });
+      showScanResult('success', item.name, `Added 1 · now ${newQty} ${item.unit}`);
+      addScanLogEntry(item.name, 1, newQty);
+      if(navigator.vibrate) navigator.vibrate(35);
+    } else {
+      // Unknown barcode — open the add-item modal pre-filled, ready to register it.
+      pendingScanBarcode = code;
+      $('barcode-field').style.display = '';
+      $('input-item-barcode').value = code;
+      $('modal-title').textContent = 'New item found';
+      $('modal-hint').textContent = `Barcode ${code} isn't registered yet in ${currentShop.name}. Fill in the details to save it.`;
+      $('input-item-name').value = '';
+      $('input-item-qty').value = '1';
+      selectedUnit = 'rolls';
+      document.querySelectorAll('.unit-choice').forEach(u => u.classList.toggle('active', u.dataset.unit === 'rolls'));
+      $('modal-backdrop').classList.add('active');
+      setTimeout(() => $('input-item-name').focus(), 250);
+    }
+  }
+}
+
+function showScanResult(state, title, subtitle){
+  const el = $('scan-result');
+  el.className = 'scan-result' + (state === 'success' ? ' success' : state === 'error' ? ' error' : '');
+  if(state === 'idle'){
+    el.innerHTML = '<span style="opacity:.6; font-size:13px;">Waiting for a scan…</span>';
+  } else {
+    el.innerHTML = `<div class="item-name">${escapeHtml(title)}</div><div class="item-qty">${escapeHtml(subtitle)}</div>`;
+  }
+}
+
+function addScanLogEntry(name, delta, qtyAfter, isNew){
+  scanSessionLog.unshift({ name, delta, qtyAfter, isNew });
+  scanSessionLog = scanSessionLog.slice(0, 20);
+  renderScanLog();
+}
+
+function renderScanLog(){
+  const box = $('scan-log-list');
+  if(!scanSessionLog.length){
+    box.innerHTML = '<div style="opacity:.5; font-size:13px;">Nothing scanned yet this session.</div>';
+    return;
+  }
+  box.innerHTML = '';
+  scanSessionLog.forEach(entry => {
+    const row = document.createElement('div');
+    row.className = 'scan-log-item';
+    const deltaClass = entry.delta > 0 ? 'plus' : 'minus';
+    const deltaText = entry.isNew ? 'NEW' : (entry.delta > 0 ? '+1' : '−1');
+    row.innerHTML = `<span class="name">${escapeHtml(entry.name)}</span><span class="delta ${deltaClass}">${deltaText} → ${entry.qtyAfter}</span>`;
+    box.appendChild(row);
+  });
+}
 
 /* ---------------- Service worker ---------------- */
 if('serviceWorker' in navigator){
