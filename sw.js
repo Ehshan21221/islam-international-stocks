@@ -2,7 +2,7 @@
 // Caches the app shell so it opens instantly and works offline.
 // Stock DATA itself is synced live through Firestore, not cached here.
 
-const CACHE_NAME = 'ii-stocks-shell-v7';
+const CACHE_NAME = 'ii-stocks-shell-v8';
 const SHELL_FILES = [
   './index.html',
   './config.js',
