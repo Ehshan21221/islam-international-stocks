@@ -101,7 +101,15 @@
   }
   .btn-google:active{transform:scale(.97);}
   .btn-google svg{width:20px; height:20px;}
-  #login-error{color:#F3B4B4; font-size:13px; margin-top:16px; max-width:280px; display:none;}
+  #login-error{
+    display:none; margin-top:18px; padding:14px 16px; border-radius:14px; max-width:320px;
+    background:rgba(220,80,80,.16); border:1.5px solid rgba(243,180,180,.5);
+    color:#FFE3E3; font-size:13.5px; font-weight:600; line-height:1.5; text-align:left;
+  }
+  .login-spin{
+    width:14px; height:14px; border:2px solid rgba(217,192,147,.3); border-top-color:var(--gold-light);
+    border-radius:50%; display:inline-block; animation: spin .7s linear infinite;
+  }
   .login-footnote{position:absolute; bottom:22px; left:0; right:0; text-align:center; font-size:11px; color:rgba(247,244,236,.45); letter-spacing:.4px;}
 
   /* ---------- SHOP PICKER SCREEN ---------- */
@@ -474,7 +482,11 @@
       <svg viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.9 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6 29.6 4 24 4c-7.5 0-14 4.2-17.7 10.7z"/><path fill="#4CAF50" d="M24 44c5.4 0 10.4-2.1 14.1-5.5l-6.5-5.5C29.5 34.9 26.9 36 24 36c-5.3 0-9.8-3.1-11.2-7.9l-6.6 5C9.9 39.8 16.4 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.7 2-2 3.7-3.7 5l6.5 5.5C40.9 36.5 44 30.9 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
       Sign in with Google
     </button>
-    <p id="login-error"></p>
+    <div id="login-checking" style="display:none; margin-top:18px; color:var(--gold-light); font-size:13px; align-items:center; gap:8px; justify-content:center;">
+      <span class="login-spin"></span>
+      Finishing sign-in…
+    </div>
+    <div id="login-error"></div>
     <p class="login-footnote">Made by Ehshan</p>
   </section>
 
@@ -792,8 +804,9 @@ function initFirebase(){
         const allowed = !ALLOWED_STAFF_EMAILS.length ||
           ALLOWED_STAFF_EMAILS.map(e=>e.toLowerCase()).includes(email);
         if(!allowed){
+          $('login-checking').style.display = 'none';
           $('login-error').style.display='block';
-          $('login-error').textContent = 'This Google account (' + user.email + ') is not on the staff list for this shop. Ask Ehshan to add it in config.js.';
+          $('login-error').innerHTML = '⚠️ <b>' + escapeHtml(user.email) + '</b> signed in successfully with Google, but this app doesn\'t recognize it as a staff account yet. Ask Ehshan to add this exact email to the staff list in config.js.';
           auth.signOut();
           return;
         }
@@ -808,7 +821,11 @@ function initFirebase(){
     // Handle the return trip from Google sign-in (redirect-based, not popup —
     // this is far more reliable on Safari/iOS and inside installed home-screen
     // apps, which often block or break the popup-based flow).
-    auth.getRedirectResult().catch(err => {
+    $('login-checking').style.display = 'flex';
+    auth.getRedirectResult().then(() => {
+      $('login-checking').style.display = 'none';
+    }).catch(err => {
+      $('login-checking').style.display = 'none';
       console.error('redirect sign-in error', err);
       $('login-error').style.display = 'block';
       $('login-error').textContent = 'Sign-in didn\'t complete (' + err.message + '). Please try tapping "Sign in with Google" again.';
