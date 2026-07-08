@@ -111,6 +111,10 @@
     border-radius:50%; display:inline-block; animation: spin .7s linear infinite;
   }
   .login-footnote{position:absolute; bottom:22px; left:0; right:0; text-align:center; font-size:11px; color:rgba(247,244,236,.45); letter-spacing:.4px;}
+  .link-btn{
+    background:none; border:none; color:var(--gold-light); font-size:12.5px; font-weight:700;
+    text-decoration:underline; cursor:pointer; margin-top:16px; padding:6px;
+  }
 
   /* ---------- SHOP PICKER SCREEN ---------- */
   #screen-shops{background:var(--cream);}
@@ -487,6 +491,22 @@
       Finishing sign-in…
     </div>
     <div id="login-error"></div>
+
+    <button id="btn-toggle-email-login" class="link-btn">Trouble with Google? Sign in with email instead</button>
+
+    <div id="email-login-form" style="display:none; width:100%; max-width:300px; margin-top:16px; text-align:left;">
+      <div class="field">
+        <label style="color:var(--gold-light);">Email</label>
+        <input type="email" id="login-email" autocomplete="email" placeholder="you@gmail.com">
+      </div>
+      <div class="field">
+        <label style="color:var(--gold-light);">Password</label>
+        <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" id="btn-email-signin" style="width:100%;">Sign in</button>
+      <button id="btn-back-to-google" class="link-btn" style="margin-top:10px;">Back to Google sign-in</button>
+    </div>
+
     <p class="login-footnote">Made by Ehshan</p>
   </section>
 
@@ -843,6 +863,39 @@ $('btn-google-signin').addEventListener('click', () => {
   auth.signInWithRedirect(provider).catch(err => {
     $('login-error').style.display='block';
     $('login-error').textContent = err.message;
+  });
+});
+
+/* ---------------- Email/password sign-in (bypasses Google entirely) ---------------- */
+$('btn-toggle-email-login').addEventListener('click', () => {
+  $('email-login-form').style.display = '';
+  $('btn-toggle-email-login').style.display = 'none';
+  $('btn-google-signin').style.display = 'none';
+});
+$('btn-back-to-google').addEventListener('click', () => {
+  $('email-login-form').style.display = 'none';
+  $('btn-toggle-email-login').style.display = '';
+  $('btn-google-signin').style.display = '';
+});
+
+$('btn-email-signin').addEventListener('click', () => {
+  if(!firebaseReady){ toast('App not configured yet'); return; }
+  const email = $('login-email').value.trim();
+  const password = $('login-password').value;
+  if(!email || !password){
+    $('login-error').style.display = 'block';
+    $('login-error').textContent = 'Enter both email and password.';
+    return;
+  }
+  auth.signInWithEmailAndPassword(email, password).catch(err => {
+    $('login-error').style.display = 'block';
+    if(err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential'){
+      $('login-error').textContent = 'No account set up for this email yet. Ask Ehshan to create it for you.';
+    } else if(err.code === 'auth/wrong-password'){
+      $('login-error').textContent = 'Wrong password. Ask Ehshan if you\'re not sure.';
+    } else {
+      $('login-error').textContent = err.message;
+    }
   });
 });
 
