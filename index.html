@@ -860,7 +860,19 @@ function initFirebase(){
 $('btn-google-signin').addEventListener('click', () => {
   if(!firebaseReady){ toast('App not configured yet'); return; }
   const provider = new firebase.auth.GoogleAuthProvider();
-  auth.signInWithRedirect(provider).catch(err => {
+  auth.signInWithPopup(provider).catch(err => {
+    // If the popup itself couldn't open/complete (common on some mobile
+    // browsers or installed home-screen apps), fall back to the redirect
+    // method instead of just failing outright.
+    const fallbackCodes = ['auth/popup-blocked', 'auth/operation-not-supported-in-this-environment', 'auth/cancelled-popup-request'];
+    if(fallbackCodes.includes(err.code)){
+      auth.signInWithRedirect(provider).catch(err2 => {
+        $('login-error').style.display='block';
+        $('login-error').textContent = err2.message;
+      });
+      return;
+    }
+    if(err.code === 'auth/popup-closed-by-user') return; // user closed it themselves, no error needed
     $('login-error').style.display='block';
     $('login-error').textContent = err.message;
   });
