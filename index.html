@@ -218,6 +218,8 @@
   .staff-row .name{font-weight:700; font-size:15px;}
   .staff-row .stats{display:flex; gap:14px; margin-top:8px; font-size:12px; color:var(--ink-soft); flex-wrap:wrap;}
   .staff-row .stats b{color:var(--ink); font-family:'IBM Plex Mono',monospace;}
+  [data-longpress]{-webkit-tap-highlight-color:transparent; border-radius:10px;}
+  [data-longpress].pressing{background:rgba(162,59,59,.14); transition: background 2s linear;}
   .activity-item{
     display:flex; gap:10px; align-items:flex-start; padding:10px 0;
   }
@@ -1094,7 +1096,7 @@ function itemCard(item){
   const low = item.qty <= 2;
   card.innerHTML = `
     <div class="top">
-      <div>
+      <div data-longpress="${item.id}">
         <h3>${escapeHtml(item.name)}</h3>
         <div class="updated">Updated by ${escapeHtml(item.updatedBy || 'staff')} · ${timeAgo(item.updatedAt)}</div>
         ${item.variant ? `<div class="barcode-tag">🎨 ${escapeHtml(item.variant)}</div>` : ''}
@@ -1147,7 +1149,7 @@ function variantRow(item){
   row.className = 'variant-row';
   const low = item.qty <= 2;
   row.innerHTML = `
-    <div class="vr-left">
+    <div class="vr-left" data-longpress="${item.id}">
       <div class="vr-name">${item.variant ? escapeHtml(item.variant) : '(no color set)'}</div>
       ${item.barcode ? `<div class="barcode-tag">▤ ${escapeHtml(item.barcode)}</div>` : ''}
       ${item.arrivalDate ? `<div class="barcode-tag">📦 ${formatArrivalDate(item.arrivalDate)}</div>` : ''}
@@ -1219,6 +1221,32 @@ $('item-list').addEventListener('click', (e) => {
   const delBtn = e.target.closest('[data-del]');
   if(delBtn){ deleteItem(delBtn.dataset.del); }
 });
+
+/* ---------------- Long-press (2s) to delete ---------------- */
+let longPressTimer = null;
+let longPressEl = null;
+
+function cancelLongPress(){
+  if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
+  if(longPressEl){ longPressEl.classList.remove('pressing'); longPressEl = null; }
+}
+
+$('item-list').addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('[data-longpress]');
+  if(!el) return;
+  longPressEl = el;
+  el.classList.add('pressing');
+  longPressTimer = setTimeout(() => {
+    el.classList.remove('pressing');
+    if(navigator.vibrate) navigator.vibrate(50);
+    deleteItem(el.dataset.longpress);
+    longPressEl = null;
+  }, 2000);
+});
+$('item-list').addEventListener('pointerup', cancelLongPress);
+$('item-list').addEventListener('pointerleave', cancelLongPress, true);
+$('item-list').addEventListener('pointercancel', cancelLongPress);
+$('item-list').addEventListener('scroll', cancelLongPress, true);
 
 function changeQty(itemId, dir){
   const item = itemsCache.find(i => i.id === itemId);
