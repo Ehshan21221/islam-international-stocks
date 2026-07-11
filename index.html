@@ -1126,7 +1126,7 @@ function groupCard(key, group){
   card.className = 'item-card group-card';
   const expanded = expandedGroups.has(key);
   card.innerHTML = `
-    <div class="top group-header" data-group="${key}">
+    <div class="top group-header" data-group="${escapeHtml(key)}">
       <div>
         <h3>${escapeHtml(group.name)}</h3>
         <div class="updated">${group.items.length} colors/variants — tap to ${expanded ? 'collapse' : 'see all'}</div>
